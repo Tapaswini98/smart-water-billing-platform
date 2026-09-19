@@ -1,0 +1,64 @@
+<Project>
+
+  <!--
+    Central Package Management: every version is declared once, here.
+    Individual .csproj files reference packages without a Version attribute.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!--
+      Transitive pinning lets this file override a version a dependency chose for
+      us. That is how the two security pins at the bottom of this file work.
+    -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="ASP.NET Core">
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup Label="Persistence">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup Label="Validation, docs, logging">
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.17.6" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup Label="Security pins (transitive)">
+    <!--
+      Neither package is referenced directly; both arrive through a dependency that
+      selected a version with a published advisory. NuGet audit is set to fail the
+      build on these, so they are pinned forward rather than suppressed.
+
+      Microsoft.OpenApi: pulled in by Microsoft.AspNetCore.OpenApi, which resolves
+      2.0.0 (GHSA-v5pm-xwqc-g5wc). Pinned to the latest patched 2.x — same major
+      version, so the API surface the framework expects is unchanged.
+    -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.12.2" />
+    <!--
+      Not pinned here: SSH.NET arrives through Testcontainers, whose 4.15.0 release
+      already requires 2026.0.0 — past both of its advisories. Pinning it would only
+      hold it back.
+    -->
+  </ItemGroup>
+
+</Project>

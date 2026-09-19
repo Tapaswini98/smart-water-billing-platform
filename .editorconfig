@@ -1,0 +1,41 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+trim_trailing_whitespace = true
+
+[*.{cs,csx}]
+indent_size = 4
+
+# Namespaces, usings, modern C#
+csharp_style_namespace_declarations = file_scoped:error
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_prefer_braces = true:warning
+
+# Nullability and correctness are errors, not suggestions.
+dotnet_diagnostic.CS8600.severity = error
+dotnet_diagnostic.CS8602.severity = error
+dotnet_diagnostic.CS8618.severity = error
+
+[*.{csproj,props,targets,json,yml,yaml}]
+indent_size = 2
+
+[*.{sh,bash}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# EF Core owns these files and regenerates them. Style rules that would force us to
+# hand-edit generated output cost time and produce diffs the next scaffold undoes,
+# so they are switched off here rather than fought.
+[**/Persistence/Migrations/*.cs]
+generated_code = true
+csharp_style_namespace_declarations = block_scoped:silent
+dotnet_diagnostic.IDE0161.severity = none
+dotnet_analyzer_diagnostic.severity = none

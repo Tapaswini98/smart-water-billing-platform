@@ -1,0 +1,38 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+*.suo
+
+# IDE
+.vs/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.DotSettings.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit real credentials.
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+*.pfx
+*.key
+
+# Local database volumes
+.postgres-data/
+
+# Backups: the repository ships ONE sanitized, synthetic-data dump
+# (backups/sample-*.dump). Everything else produced locally stays out.
+backups/*
+!backups/README.md
+!backups/sample-*.dump
+!backups/sample-*.dump.sha256

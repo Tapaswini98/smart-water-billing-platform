@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.idea/
+**/.vscode/
+.git/
+.github/
+backups/
+docs/
+.postgres-data/
+**/.DS_Store
+**/*.user
+.env
+.env.*
+README.md
