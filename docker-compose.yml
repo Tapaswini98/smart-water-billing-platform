@@ -1,0 +1,54 @@
+name: smart-water-billing
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: waterbilling-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-waterbilling}
+      POSTGRES_USER: ${POSTGRES_USER:-waterbilling}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-locally}
+      # Deterministic collation so index ordering matches between a developer
+      # machine and the on-prem box.
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-US"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      # The API waits on this, so it must test a real query, not just the port.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-waterbilling} -d ${POSTGRES_DB:-waterbilling}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: waterbilling-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__WaterBilling: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-waterbilling};Username=${POSTGRES_USER:-waterbilling};Password=${POSTGRES_PASSWORD:-change-me-locally};Include Error Detail=true"
+      Jwt__SigningKey: ${JWT__SIGNINGKEY:-dev-only-signing-key-replace-me-with-48-random-bytes}
+      Jwt__Issuer: ${JWT__ISSUER:-smart-water-billing}
+      Jwt__Audience: ${JWT__AUDIENCE:-smart-water-billing-clients}
+      Jwt__AccessTokenMinutes: ${JWT__ACCESSTOKENMINUTES:-60}
+      Seed__Enabled: ${SEED__ENABLED:-true}
+      Seed__AdminEmail: ${SEED__ADMINEMAIL:-admin@waterworks.local}
+      Seed__AdminPassword: ${SEED__ADMINPASSWORD:-Admin#12345}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - api-logs:/app/logs
+
+volumes:
+  postgres-data:
+  api-logs:

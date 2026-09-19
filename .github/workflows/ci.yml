@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: |
+          dotnet tool restore
+          dotnet restore
+
+      # Warnings are errors in Directory.Build.props, so this step is the style and
+      # nullability gate as well as the compile gate.
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --logger "trx;LogFileName=results.trx" --results-directory artifacts/test-results
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: artifacts/test-results
+          if-no-files-found: ignore
+
+  verify-restore:
+    name: Verify the committed backup actually restores
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The difference between a backup strategy and a backup paragraph: this job
+      # restores the committed dump into a clean PostgreSQL container and asserts
+      # the data came back meaning the same thing. If it ever fails, the backup
+      # cannot be relied on and we find out on a pull request rather than during
+      # an incident.
+      # Skips cleanly until the sample dump is committed, so this job is red only
+      # when a dump exists and genuinely fails to restore.
+      - name: Restore and verify
+        run: |
+          if ! compgen -G "backups/sample-*.dump" > /dev/null; then
+            echo "::notice::No sample dump committed yet — nothing to verify."
+            exit 0
+          fi
+          scripts/verify-restore.sh
+
+  docker-build:
+    name: Build the runtime image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: smart-water-billing/api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
