@@ -1,0 +1,642 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Smart Water Billing API",
+    "description": "On-premise IoT water billing. Humans authenticate with a JWT from /api/v1/auth/login; meters authenticate per request with the X-Meter-Key header.",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Exchange credentials for a bearer token",
+        "description": "Returns a JWT carrying the user's role. Admin and Customer are distinguished by the role claim; meters do not log in here — they authenticate per-request with X-Meter-Key.",
+        "operationId": "Login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ingest/readings": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Submit one meter reading",
+        "description": "Authenticated with the per-meter X-Meter-Key header. Idempotent: re-posting a reading for a timestamp that already exists returns 200 with status 'duplicate_ignored' rather than an error, so a device that retries after a timeout is always safe.",
+        "operationId": "IngestReading",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingIngestionResult"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingIngestionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ingest/readings/batch": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Submit buffered readings",
+        "description": "For devices that store and forward after a link outage. Each reading is processed independently, so one bad row does not discard the batch; the response reports the outcome of every reading.",
+        "operationId": "IngestReadingBatch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingBatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/readings": {
+      "get": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "List readings for a meter",
+        "description": "Admins may read any meter. A customer may read only meters assigned to their own account; requesting another customer's meter returns 403, not 404, because the meter's existence is not itself a secret.",
+        "operationId": "GetMeterReadings",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingPageResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "LoginRequest": {
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginResponse": {
+        "required": [
+          "accessToken",
+          "tokenType",
+          "expiresAtUtc",
+          "userId",
+          "email",
+          "fullName",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string"
+          },
+          "expiresAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ReadingBatchRequest": {
+        "required": [
+          "readings"
+        ],
+        "type": "object",
+        "properties": {
+          "readings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingRequest"
+            }
+          }
+        },
+        "description": "Batch form, for devices that store and forward after a link outage."
+      },
+      "ReadingBatchResponse": {
+        "required": [
+          "meterId",
+          "meterSerial",
+          "accepted",
+          "duplicates",
+          "rejected",
+          "results"
+        ],
+        "type": "object",
+        "properties": {
+          "meterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "meterSerial": {
+            "type": "string"
+          },
+          "accepted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "duplicates": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingIngestionResult"
+            }
+          }
+        }
+      },
+      "ReadingIngestionResult": {
+        "required": [
+          "status",
+          "readingAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "readingAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "readingId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "anomalies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Anomaly flags raised while storing, as readable tokens."
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "What happened to one submitted reading. `Status` is a stable machine token:\n`accepted`, `duplicate_ignored`, or `rejected`."
+      },
+      "ReadingPageResponse": {
+        "required": [
+          "meterId",
+          "serialNumber",
+          "page",
+          "pageSize",
+          "totalCount",
+          "readings"
+        ],
+        "type": "object",
+        "properties": {
+          "meterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serialNumber": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "readings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReadingResponse"
+            }
+          }
+        }
+      },
+      "ReadingRequest": {
+        "required": [
+          "readingAtUtc",
+          "totalM3",
+          "flowM3PerHour"
+        ],
+        "type": "object",
+        "properties": {
+          "readingAtUtc": {
+            "type": "string",
+            "description": "When the meter took the reading. Supplied by the device, not the server: a meter\nthat buffers through a network outage must still report when each reading happened.",
+            "format": "date-time"
+          },
+          "totalM3": {
+            "type": "number",
+            "description": "Cumulative volume in m3.",
+            "format": "double"
+          },
+          "flowM3PerHour": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Instantaneous flow in m3/hr. Optional, diagnostic only.",
+            "format": "double"
+          }
+        },
+        "description": "A single observation posted by a meter."
+      },
+      "ReadingResponse": {
+        "required": [
+          "id",
+          "readingAtUtc",
+          "receivedAtUtc",
+          "totalM3",
+          "flowM3PerHour",
+          "source",
+          "anomalies",
+          "anomalyNotes"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "readingAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "receivedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "flowM3PerHour": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "source": {
+            "type": "string"
+          },
+          "anomalies": {
+            "type": "string"
+          },
+          "anomalyNotes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Paste the accessToken returned by POST /api/v1/auth/login.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "MeterKey": {
+        "type": "apiKey",
+        "description": "Per-meter ingestion key. Issued when the meter is created and shown only once.",
+        "name": "X-Meter-Key",
+        "in": "header"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Ingestion"
+    },
+    {
+      "name": "Meters"
+    }
+  ]
+}

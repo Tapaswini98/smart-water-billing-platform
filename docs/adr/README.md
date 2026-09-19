@@ -19,3 +19,4 @@ A decision without a stated limit is a guess that got lucky. Where a record says
 | [0008](0008-postgresql-single-node.md) | Single-node PostgreSQL, migrations applied at startup | Accepted |
 | [0009](0009-on-premise-with-cloud-backup.md) | On-premise billing path, cloud for backup and aggregation | Accepted |
 | [0010](0010-soft-delete-policy.md) | Soft delete for master data, never for financial records | Accepted |
+| [0011](0011-frontend-architecture.md) | React SPA with a generated API client, no client-side state library | Accepted |

@@ -49,6 +49,20 @@ services:
     volumes:
       - api-logs:/app/logs
 
+  web:
+    build:
+      # Repository root, not ./web: the image needs openapi/ as well, so that the
+      # TypeScript client is regenerated from the contract at build time and a
+      # drifted client fails the build instead of shipping.
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: waterbilling-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-3000}:8080"
+
 volumes:
   postgres-data:
   api-logs:

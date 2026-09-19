@@ -45,6 +45,7 @@ That gives you:
 
 | Thing | Where |
 |---|---|
+| Web UI | <http://localhost:3000> |
 | API | <http://localhost:8080> |
 | Interactive API reference (Scalar) | <http://localhost:8080/scalar/v1> |
 | OpenAPI document | <http://localhost:8080/openapi/v1.json> |
@@ -90,6 +91,7 @@ so the walkthrough works immediately, without creating anything first.
 | Requirement | Status |
 |---|---|
 | Authentication mechanism | JWT bearer for users; per-meter API key for devices |
+| Web UI (React + TypeScript) | Shell, auth and readings view; remaining screens _(pending)_ |
 | Create a water meter | _(pending)_ |
 | Create a user | _(pending)_ |
 | View consumption info | Readings endpoint implemented; aggregated view _(pending)_ |
@@ -224,6 +226,7 @@ Each states the decision, the reason, and the point at which it should be revisi
 | [0008](docs/adr/0008-postgresql-single-node.md) | Single-node PostgreSQL — with the arithmetic that justifies it and the thresholds that would change it |
 | [0009](docs/adr/0009-on-premise-with-cloud-backup.md) | On-premise billing path, cloud for backup and multi-site aggregation |
 | [0010](docs/adr/0010-soft-delete-policy.md) | Soft delete for master data, never for financial records |
+| [0011](docs/adr/0011-frontend-architecture.md) | React SPA with a generated API client; no client-side state library |
 
 ---
 
@@ -245,10 +248,13 @@ change the system most if wrong:
 ```bash
 dotnet test                                    # everything
 dotnet test tests/WaterBilling.Domain.Tests    # pure, no Docker needed
+
+cd web && npm run lint && npm run build        # web: lint + type-check + bundle
 ```
 
 The solution builds with `TreatWarningsAsErrors`, so a warning fails CI rather than
-accumulating.
+accumulating. The web client is generated from the API's OpenAPI document and CI
+fails if the committed client has drifted from it.
 
 `WaterBilling.Domain.Tests` covers the two calculations that decide what a customer
 pays — consumption derivation and tariff pricing — including the boundary values
@@ -310,6 +316,8 @@ src/
 tests/
   WaterBilling.Domain.Tests/    Pure unit tests. No database, no host.
   WaterBilling.Api.Tests/       Integration tests against real PostgreSQL.
+web/                            React + TypeScript client. See web/README.md.
+openapi/                        Contract emitted by the API build; the web client is generated from it.
 docs/
   adr/                          Architecture decision records.
 db/                             Generated schema DDL and migration instructions.

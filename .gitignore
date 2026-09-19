@@ -30,6 +30,13 @@ appsettings.Local.json
 # Local database volumes
 .postgres-data/
 
+# Serilog file sink output. Written under the project directory when the API runs
+# from source, and by the build-time OpenAPI document generator.
+logs/
+
+# Node
+node_modules/
+
 # Backups: the repository ships ONE sanitized, synthetic-data dump
 # (backups/sample-*.dump). Everything else produced locally stays out.
 backups/*

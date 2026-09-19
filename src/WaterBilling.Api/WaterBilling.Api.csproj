@@ -4,6 +4,18 @@
     <UserSecretsId>smart-water-billing-api</UserSecretsId>
   </PropertyGroup>
 
+  <PropertyGroup Label="OpenAPI document emission">
+    <!--
+      Write openapi/v1.json on every build. This is what lets the frontend generate
+      its TypeScript client from the real contract without a running server and
+      without a database: the API and the web client cannot drift, and a breaking
+      DTO change surfaces as a TypeScript compile error rather than a runtime 500.
+    -->
+    <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+    <OpenApiDocumentsDirectory>$(MSBuildThisFileDirectory)../../openapi</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOnBuild>true</OpenApiGenerateDocumentsOnBuild>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="../WaterBilling.Domain/WaterBilling.Domain.csproj" />
     <ProjectReference Include="../WaterBilling.Infrastructure/WaterBilling.Infrastructure.csproj" />
@@ -11,6 +23,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />

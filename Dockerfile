@@ -23,7 +23,8 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
     dotnet publish src/WaterBilling.Api/WaterBilling.Api.csproj \
         --configuration ${BUILD_CONFIGURATION} \
         --no-restore \
-        --output /app/publish
+        --output /app/publish \
+        -p:OpenApiGenerateDocumentsOnBuild=false
 
 # ---------------------------------------------------------------------------
 # Runtime stage

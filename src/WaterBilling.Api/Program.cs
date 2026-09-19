@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -25,9 +26,30 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Services(services)
     .Enrich.FromLogContext());
 
-builder.Services.AddInfrastructure(builder.Configuration);
+// The build-time OpenAPI generator starts the host with no database and no secrets.
+// Everything that shapes the document still runs; only the startup work that needs
+// those resources is skipped.
+var isDocumentGeneration = HostingContext.IsOpenApiDocumentGeneration;
+
+builder.Services.AddInfrastructure(builder.Configuration, validateConfigurationEagerly: !isDocumentGeneration);
+
+// ASP.NET Core's web JSON defaults set NumberHandling = AllowReadingFromString, which
+// makes the OpenAPI schema exporter describe every numeric field as `number | string`.
+// That union propagates into every generated client and forces callers to narrow a
+// type the API never actually returns. Strict mode restores a clean contract, and
+// makes a meter that posts "totalM3": "12.5" fail validation loudly instead of being
+// quietly accepted in a form the documented schema does not promise.
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
 
 builder.Services.AddScoped<IngestionService>();
+
+if (!isDocumentGeneration)
+{
+    builder.Services.AddHostedService<DatabaseInitializer>();
+}
 builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>(includeInternalTypes: true);
 
@@ -50,7 +72,21 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 // Humans carry a JWT; meters present a per-meter key. Keeping them separate is what
 // lets the authorization policies state "a device credential cannot read invoices".
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-    ?? throw new InvalidOperationException("The Jwt configuration section is missing.");
+    ?? new JwtOptions();
+
+if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey))
+{
+    if (!isDocumentGeneration)
+    {
+        throw new InvalidOperationException(
+            "Jwt:SigningKey is not configured. Generate one with `openssl rand -base64 48` " +
+            "and set it as Jwt__SigningKey, or copy .env.example to .env and run via docker compose.");
+    }
+
+    // Placeholder that never signs anything: the document generator only needs the
+    // authentication schemes to be registered so they appear in the spec.
+    jwtOptions.SigningKey = new string('0', 64);
+}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -115,8 +151,6 @@ app.MapAuthEndpoints();
 app.MapIngestionEndpoints();
 app.MapMeterReadingEndpoints();
 app.MapHealthEndpoints();
-
-await app.ApplyDatabaseMigrationsAsync();
 
 app.Run();
 

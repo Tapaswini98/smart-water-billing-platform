@@ -11,15 +11,36 @@ public static class DependencyInjection
 {
     public const string ConnectionStringName = "WaterBilling";
 
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="configuration">Application configuration, read for connection strings and JWT options.</param>
+    /// <param name="validateConfigurationEagerly">
+    /// When true (the default), a missing connection string or signing key fails at
+    /// startup rather than at first use. Set false only for tooling that builds the
+    /// host without intending to serve traffic — see <c>HostingContext</c>.
+    /// </param>
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        bool validateConfigurationEagerly = true)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var connectionString = configuration.GetConnectionString(ConnectionStringName)
-            ?? throw new InvalidOperationException(
-                $"Connection string '{ConnectionStringName}' is not configured. " +
-                "Set ConnectionStrings__WaterBilling, or copy .env.example to .env and run via docker compose.");
+        var connectionString = configuration.GetConnectionString(ConnectionStringName);
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            if (validateConfigurationEagerly)
+            {
+                throw new InvalidOperationException(
+                    $"Connection string '{ConnectionStringName}' is not configured. " +
+                    "Set ConnectionStrings__WaterBilling, or copy .env.example to .env and run via docker compose.");
+            }
+
+            // Never connected to: the provider only needs to exist so that the model
+            // can be built and the endpoint metadata read.
+            connectionString = "Host=localhost;Database=openapi-document-generation";
+        }
 
         services.AddDbContext<WaterBillingDbContext>(options =>
         {
@@ -42,11 +63,15 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
 
-        services.AddOptions<JwtOptions>()
+        var jwt = services.AddOptions<JwtOptions>()
             .Bind(configuration.GetSection(JwtOptions.SectionName))
-            .ValidateDataAnnotations()
+            .ValidateDataAnnotations();
+
+        if (validateConfigurationEagerly)
+        {
             // Fail at startup, not at first login, if the signing key is missing.
-            .ValidateOnStart();
+            jwt.ValidateOnStart();
+        }
 
         return services;
     }
