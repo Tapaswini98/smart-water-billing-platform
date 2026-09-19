@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ADR-0002: this project has ZERO package references, by design.
+    The consumption calculator and the pricing engine are pure functions over
+    plain objects, so they are unit-testable without a database or a host.
+    If you find yourself wanting to add a package here, the logic probably
+    belongs in Infrastructure or Api instead.
+  -->
+
+</Project>
