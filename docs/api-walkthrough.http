@@ -1,0 +1,239 @@
+###############################################################################
+# Smart Water Billing — API walkthrough
+#
+# Open in VS Code (REST Client extension) or Rider and click "Send Request".
+# Every request below works against a freshly seeded Development database:
+#
+#     cp .env.example .env && docker compose up --build
+#
+# The demo meter keys are deterministic, so nothing has to be created first.
+###############################################################################
+
+@host = http://localhost:8080
+@adminEmail = admin@waterworks.local
+@adminPassword = Admin#12345
+@customerEmail = asha@example.com
+@customerPassword = Customer#12345
+
+# Demo meter WM-2024-0001, assigned to Asha Menon.
+@meterKey = wmk_demo0001_asha_flat_a101
+@meterId = 00000000-0000-0000-0000-0000000000e1
+
+# A meter belonging to a DIFFERENT customer, for the authorization check below.
+@otherMeterId = 00000000-0000-0000-0000-0000000000e3
+
+
+###############################################################################
+# 0. Is it up?
+###############################################################################
+
+### Liveness — never touches the database
+GET {{host}}/health/live
+
+### Readiness — checks PostgreSQL and reports pending migrations
+GET {{host}}/health/ready
+
+
+###############################################################################
+# 1. Authentication
+###############################################################################
+
+### Log in as the administrator
+# @name adminLogin
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+@adminToken = {{adminLogin.response.body.accessToken}}
+
+### Log in as a customer
+# @name customerLogin
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{customerEmail}}",
+  "password": "{{customerPassword}}"
+}
+
+@customerToken = {{customerLogin.response.body.accessToken}}
+
+### Wrong password — 401 with the same message as an unknown account.
+### Deliberate: distinguishing them turns login into an account-enumeration oracle.
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "definitely-not-the-password"
+}
+
+### Malformed request — RFC 9457 validation problem, one message per field
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "password": ""
+}
+
+
+###############################################################################
+# 2. Ingestion — the device path
+#
+# Note what is NOT here: a bearer token. A meter cannot complete a login, so it
+# authenticates per request with its own key (ADR-0005).
+###############################################################################
+
+### Post a reading
+POST {{host}}/api/v1/ingest/readings
+Content-Type: application/json
+X-Meter-Key: {{meterKey}}
+
+{
+  "readingAtUtc": "2026-09-19T08:00:00Z",
+  "totalM3": 1240.500,
+  "flowM3PerHour": 0.400
+}
+
+### Post the SAME reading again.
+### Returns 200 with status "duplicate_ignored", not an error: a meter that
+### retries after a timeout must be safe. Idempotency is enforced by a unique
+### index on (meter_id, reading_at_utc), not by a check-then-insert race.
+POST {{host}}/api/v1/ingest/readings
+Content-Type: application/json
+X-Meter-Key: {{meterKey}}
+
+{
+  "readingAtUtc": "2026-09-19T08:00:00Z",
+  "totalM3": 1240.500,
+  "flowM3PerHour": 0.400
+}
+
+### Post a LATER reading, then an EARLIER one, out of order.
+### Both are accepted. Consumption is computed from the time-ordered series, so
+### the order readings arrive in cannot change any invoice.
+POST {{host}}/api/v1/ingest/readings
+Content-Type: application/json
+X-Meter-Key: {{meterKey}}
+
+{
+  "readingAtUtc": "2026-09-19T10:00:00Z",
+  "totalM3": 1241.900,
+  "flowM3PerHour": 0.350
+}
+
+###
+POST {{host}}/api/v1/ingest/readings
+Content-Type: application/json
+X-Meter-Key: {{meterKey}}
+
+{
+  "readingAtUtc": "2026-09-19T09:00:00Z",
+  "totalM3": 1241.100,
+  "flowM3PerHour": 0.600
+}
+
+### A meter reset: TOTAL goes backwards.
+### Accepted and flagged TotalDecreased, and a MeterResetEvent is recorded.
+### Billing will sum across the discontinuity rather than emit a negative bill.
+POST {{host}}/api/v1/ingest/readings
+Content-Type: application/json
+X-Meter-Key: {{meterKey}}
+
+{
+  "readingAtUtc": "2026-09-19T11:00:00Z",
+  "totalM3": 2.100,
+  "flowM3PerHour": 0.250
+}
+
+### Buffered upload after a link outage — batch endpoint.
+### Each reading is processed independently; one bad row does not discard the batch.
+POST {{host}}/api/v1/ingest/readings/batch
+Content-Type: application/json
+X-Meter-Key: {{meterKey}}
+
+{
+  "readings": [
+    { "readingAtUtc": "2026-09-19T12:00:00Z", "totalM3": 2.500, "flowM3PerHour": 0.300 },
+    { "readingAtUtc": "2026-09-19T13:00:00Z", "totalM3": 3.100, "flowM3PerHour": 0.450 },
+    { "readingAtUtc": "2026-09-19T14:00:00Z", "totalM3": 3.700, "flowM3PerHour": 0.200 }
+  ]
+}
+
+### Negative TOTAL — 422 with a message that says what to check
+POST {{host}}/api/v1/ingest/readings
+Content-Type: application/json
+X-Meter-Key: {{meterKey}}
+
+{
+  "readingAtUtc": "2026-09-19T15:00:00Z",
+  "totalM3": -5,
+  "flowM3PerHour": 0.1
+}
+
+### Unknown meter key — 401
+POST {{host}}/api/v1/ingest/readings
+Content-Type: application/json
+X-Meter-Key: wmk_not_a_real_key_at_all
+
+{
+  "readingAtUtc": "2026-09-19T15:00:00Z",
+  "totalM3": 10,
+  "flowM3PerHour": 0.1
+}
+
+### A customer's bearer token does NOT work on the ingestion endpoint.
+### The two authentication schemes are separate on purpose, so this is enforced
+### by the authorization policy rather than by remembering to check.
+POST {{host}}/api/v1/ingest/readings
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "readingAtUtc": "2026-09-19T16:00:00Z",
+  "totalM3": 99999,
+  "flowM3PerHour": 0.1
+}
+
+
+###############################################################################
+# 3. Reading the data back
+###############################################################################
+
+### Admin reads any meter
+GET {{host}}/api/v1/meters/{{meterId}}/readings?pageSize=20
+Authorization: Bearer {{adminToken}}
+
+### The owning customer reads their own meter
+GET {{host}}/api/v1/meters/{{meterId}}/readings?pageSize=20
+Authorization: Bearer {{customerToken}}
+
+### The same customer reads someone ELSE's meter — 403.
+### 403 rather than 404: the meter's existence is not itself a secret, and
+### pretending otherwise would make legitimate support calls harder.
+GET {{host}}/api/v1/meters/{{otherMeterId}}/readings
+Authorization: Bearer {{customerToken}}
+
+### No token at all — 401
+GET {{host}}/api/v1/meters/{{meterId}}/readings
+
+### Filter to a date range
+GET {{host}}/api/v1/meters/{{meterId}}/readings?from=2026-09-19T09:00:00Z&to=2026-09-19T12:00:00Z
+Authorization: Bearer {{adminToken}}
+
+
+###############################################################################
+# 4. Administration — users, meters, pricing, billing
+# (pending)
+###############################################################################
+
+
+###############################################################################
+# 5. Invoices
+# (pending)
+###############################################################################
