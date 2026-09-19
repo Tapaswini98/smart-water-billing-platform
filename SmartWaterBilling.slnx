@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/solution/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="docker-compose.yml" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/WaterBilling.Domain/WaterBilling.Domain.csproj" />
+    <Project Path="src/WaterBilling.Infrastructure/WaterBilling.Infrastructure.csproj" />
+    <Project Path="src/WaterBilling.Api/WaterBilling.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WaterBilling.Domain.Tests/WaterBilling.Domain.Tests.csproj" />
+    <Project Path="tests/WaterBilling.Api.Tests/WaterBilling.Api.Tests.csproj" />
+  </Folder>
+</Solution>
