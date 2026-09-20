@@ -1,0 +1,43 @@
+==============================================================
+ Backup restore verification
+==============================================================
+ Dump:      /Users/tapaswini/Tapaswini/FL/smart-water-billing-platform/backups/sample-20260920T150139Z.dump
+ Target:    localhost:5432 database waterbilling_restore_verify_20084 (dropped on exit)
+
+Checking dump integrity...
+  PASS  checksum matches
+
+Creating a throwaway database 'waterbilling_restore_verify_20084'...
+  created.
+
+Restoring...
+  PASS  pg_restore completed without error
+
+Verifying structure...
+  PASS  table users exists                                   t
+  PASS  table meters exists                                  t
+  PASS  table meter_api_keys exists                          t
+  PASS  table meter_readings exists                          t
+  PASS  table pricing_plans exists                           t
+  PASS  table pricing_plan_versions exists                   t
+  PASS  table pricing_slabs exists                           t
+  PASS  table invoices exists                                t
+  PASS  table invoice_line_items exists                      t
+  PASS  table billing_runs exists                            t
+  PASS  table billing_run_items exists                       t
+  PASS  unique index ix_meter_readings_meter_id_reading_at_utc_unique 1
+  PASS  unique index ix_invoices_meter_id_period_start_unique 1
+
+Verifying data...
+  PASS  users restored                                       4
+  PASS  meters restored                                      6
+  PASS  meter readings restored                              44041
+  PASS  pricing plans restored                               2
+
+Recomputing invoice totals from line items...
+  PASS  invoice totals match their line items                0
+  PASS  no invoice lost its line items                       0
+
+==============================================================
+ RESULT: PASS — the backup restores and the data is intact.
+==============================================================
