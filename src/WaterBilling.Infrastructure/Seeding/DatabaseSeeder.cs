@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WaterBilling.Domain.Meters;
 using WaterBilling.Domain.Pricing;
+using WaterBilling.Domain.Readings;
 using WaterBilling.Domain.Users;
 using WaterBilling.Infrastructure.Auth;
 using WaterBilling.Infrastructure.Persistence;
@@ -53,6 +54,7 @@ public sealed class DatabaseSeeder(
         await SeedUsersAsync(now, cancellationToken);
         await SeedPricingPlansAsync(now, cancellationToken);
         await SeedMetersAsync(now, cancellationToken);
+        await SeedReadingsAsync(now, cancellationToken);
 
         logger.LogInformation(
             "Demo data ready. Admin login: {AdminEmail} / {AdminPassword}. Customer logins use {CustomerPassword}.",
@@ -165,6 +167,89 @@ public sealed class DatabaseSeeder(
 
         await db.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Seeded 2 pricing plans (one flat rate, one progressive slab).");
+    }
+
+    /// <summary>
+    /// Three months of readings ending at "now", so a billing run for the previous
+    /// calendar month has a complete series to work from the moment the stack starts.
+    /// </summary>
+    private async Task SeedReadingsAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (await db.MeterReadings.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        var from = now.AddMonths(-3);
+        var totalInserted = 0;
+
+        foreach (var (id, serial, customerIndex, _, _) in DemoSeedData.Meters)
+        {
+            if (customerIndex < 0)
+            {
+                // The unassigned spare stays silent: a billing run needs something to
+                // report as skipped, and an uncommissioned meter is exactly that.
+                continue;
+            }
+
+            var index = Array.FindIndex(DemoSeedData.Meters, m => m.Id == id);
+
+            var plan = new ReadingGenerator.Plan(
+                MeterId: id,
+                StartingTotalM3: 1000m + (index * 250m),
+                // Spread across the slab bands so the seeded invoices are not all in
+                // band one — the breakdown on the invoice is then worth looking at.
+                DailyAverageM3: 0.35 + (index * 0.28),
+                PlantReset: index == 0,
+                PlantGap: index == 2,
+                PlantContinuousFlow: index == 4);
+
+            var readings = ReadingGenerator.Generate(plan, from, now, seed: 20260919 + index);
+            ReadingGenerator.PlantOutOfOrderArrival(readings);
+
+            foreach (var reading in readings)
+            {
+                reading.CreatedAtUtc = reading.ReceivedAtUtc;
+            }
+
+            db.MeterReadings.AddRange(readings);
+            totalInserted += readings.Count;
+
+            // A register reset is an operational event, not just a flag on a row:
+            // billing has to know to sum across it.
+            var resetReading = readings.FirstOrDefault(r => r.Anomalies.HasFlag(ReadingAnomaly.TotalDecreased));
+            if (resetReading is not null)
+            {
+                var previous = readings
+                    .Where(r => r.ReadingAtUtc < resetReading.ReadingAtUtc)
+                    .OrderByDescending(r => r.ReadingAtUtc)
+                    .First();
+
+                db.MeterResetEvents.Add(new MeterResetEvent
+                {
+                    MeterId = id,
+                    DetectedAtUtc = resetReading.ReadingAtUtc,
+                    PreviousTotalM3 = previous.TotalM3,
+                    NewTotalM3 = resetReading.TotalM3,
+                    TriggeringReadingId = resetReading.Id,
+                    Notes = "Seeded meter replacement.",
+                    CreatedAtUtc = resetReading.ReadingAtUtc
+                });
+            }
+
+            logger.LogInformation("Seeded {Count} readings for meter {Serial}.", readings.Count, serial);
+        }
+
+        // Batched once rather than per meter: ~50k rows in a single transaction is
+        // still well within what a dev-box PostgreSQL absorbs comfortably.
+        await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Seeded {Total} meter readings across three months, including a planted " +
+            "out-of-order arrival, a register reset, a 30-hour reporting gap and a " +
+            "continuous-flow leak candidate. (A duplicate cannot be seeded — the unique " +
+            "index rejects it; POST the same reading twice to see that path.)",
+            totalInserted);
     }
 
     private async Task SeedMetersAsync(DateTimeOffset now, CancellationToken cancellationToken)
