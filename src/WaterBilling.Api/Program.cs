@@ -8,8 +8,12 @@ using Scalar.AspNetCore;
 using Serilog;
 using WaterBilling.Api.Features;
 using WaterBilling.Api.Features.Auth;
+using WaterBilling.Api.Features.Consumption;
 using WaterBilling.Api.Features.Ingestion;
+using WaterBilling.Api.Features.Invoices;
 using WaterBilling.Api.Features.Meters;
+using WaterBilling.Api.Features.Pricing;
+using WaterBilling.Api.Features.Users;
 using WaterBilling.Api.Infrastructure;
 using WaterBilling.Domain.Users;
 using WaterBilling.Infrastructure;
@@ -44,7 +48,15 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
 });
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<IngestionService>();
+builder.Services.AddScoped<TariffResolver>();
+builder.Services.AddScoped<BillingService>();
+builder.Services.AddSingleton<BillingCalendar>();
+
+builder.Services.AddOptions<BillingOptions>()
+    .Bind(builder.Configuration.GetSection(BillingOptions.SectionName));
 
 if (!isDocumentGeneration)
 {
@@ -148,8 +160,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapAuthEndpoints();
-app.MapIngestionEndpoints();
+app.MapUserEndpoints();
+app.MapMeterEndpoints();
 app.MapMeterReadingEndpoints();
+app.MapConsumptionEndpoints();
+app.MapIngestionEndpoints();
+app.MapPricingEndpoints();
+app.MapInvoiceEndpoints();
 app.MapHealthEndpoints();
 
 app.Run();

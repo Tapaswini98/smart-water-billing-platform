@@ -58,6 +58,920 @@
         }
       }
     },
+    "/api/v1/users": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Create a user",
+        "description": "Admin only. Creates an Admin or Customer account. Passwords are hashed with PBKDF2-HMAC-SHA512 and never stored or returned in clear.",
+        "operationId": "CreateUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "List users",
+        "operationId": "ListUsers",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{userId}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get a user",
+        "operationId": "GetUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update a user's profile",
+        "operationId": "UpdateUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Soft-delete a user",
+        "description": "The row is retained with a deletion timestamp so existing invoices stay attributable. Meters held by the user are unassigned rather than deleted, and the email address becomes reusable.",
+        "operationId": "DeleteUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters": {
+      "get": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "List meters",
+        "description": "Admins see every meter. A customer sees only meters assigned to their own account; the filter is applied server-side, not by the caller.",
+        "operationId": "ListMeters",
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeterPageResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "Create a water meter",
+        "description": "Admin only. Issues the meter's first ingestion API key in the same response — the only time the plaintext key is ever shown.",
+        "operationId": "CreateMeter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMeterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeterResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}": {
+      "get": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "Get a meter",
+        "operationId": "GetMeter",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeterResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "Update a meter",
+        "operationId": "UpdateMeter",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeterResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "Soft-delete a meter",
+        "operationId": "DeleteMeter",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/assignment": {
+      "put": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "Assign or unassign a meter",
+        "description": "Sets the customer billed for this meter. Passing null unassigns it; already-issued invoices keep the customer they were issued to.",
+        "operationId": "AssignMeter",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignMeterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeterResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/api-keys": {
+      "post": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "Issue an ingestion key",
+        "operationId": "IssueMeterApiKey",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedApiKeyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "List a meter's keys",
+        "description": "Returns prefixes and lifecycle timestamps only. Plaintext keys are not recoverable by design.",
+        "operationId": "ListMeterApiKeys",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ApiKeySummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/api-keys/{keyId}": {
+      "delete": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "Revoke an ingestion key",
+        "operationId": "RevokeMeterApiKey",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/supply": {
+      "put": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "Open or close the supply valve",
+        "description": "Records the DESIRED valve position. The on-site gateway reconciles the physical relay and reports back, so a valve that fails to actuate stays visible instead of being assumed closed.",
+        "operationId": "SetMeterSupplyState",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplyStateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeterResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/readings": {
+      "get": {
+        "tags": [
+          "Meters"
+        ],
+        "summary": "List readings for a meter",
+        "description": "Admins may read any meter. A customer may read only meters assigned to their own account; requesting another customer's meter returns 403, not 404, because the meter's existence is not itself a secret.",
+        "operationId": "GetMeterReadings",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingPageResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/consumption": {
+      "get": {
+        "tags": [
+          "Consumption"
+        ],
+        "summary": "View consumption for a period",
+        "description": "Derives consumption from the stored reading series rather than a running counter: TOTAL at the last reading on or before the period end, minus TOTAL at the last reading on or before the period start, walked pairwise so a meter reset is summed across. Defaults to the current calendar month. Flags explain any caveat on the figure.",
+        "operationId": "GetMeterConsumption",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumptionResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meters/{meterId}/consumption/monthly": {
+      "get": {
+        "tags": [
+          "Consumption"
+        ],
+        "summary": "Consumption month by month",
+        "description": "A rolling series for charting. Each month is computed independently with the same formula, so the months sum exactly to the total across the span.",
+        "operationId": "GetMeterMonthlyConsumption",
+        "parameters": [
+          {
+            "name": "meterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "months",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 6
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyConsumptionResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ingest/readings": {
       "post": {
         "tags": [
@@ -182,47 +1096,322 @@
         }
       }
     },
-    "/api/v1/meters/{meterId}/readings": {
+    "/api/v1/pricing-plans": {
       "get": {
         "tags": [
-          "Meters"
+          "Pricing"
         ],
-        "summary": "List readings for a meter",
-        "description": "Admins may read any meter. A customer may read only meters assigned to their own account; requesting another customer's meter returns 403, not 404, because the meter's existence is not itself a secret.",
-        "operationId": "GetMeterReadings",
+        "summary": "List pricing plans",
+        "description": "Every plan with its full version history. Versions are immutable, so this is the complete record of what any meter has ever been billed at.",
+        "operationId": "ListPricingPlans",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PricingPlanResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pricing"
+        ],
+        "summary": "Create a pricing plan",
+        "description": "Creates the plan and publishes its first version. Supports fixed per-unit pricing and slab pricing; slab bands are validated for contiguity by the same domain rules the pricing engine uses.",
+        "operationId": "CreatePricingPlan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePricingPlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingPlanResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pricing-plans/{planId}": {
+      "get": {
+        "tags": [
+          "Pricing"
+        ],
+        "summary": "Get a pricing plan",
+        "operationId": "GetPricingPlan",
         "parameters": [
           {
-            "name": "meterId",
+            "name": "planId",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "format": "uuid"
             }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingPlanResponse"
+                }
+              }
+            }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Pricing"
+        ],
+        "summary": "Soft-delete a pricing plan",
+        "operationId": "DeletePricingPlan",
+        "parameters": [
           {
-            "name": "from",
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pricing-plans/{planId}/versions": {
+      "post": {
+        "tags": [
+          "Pricing"
+        ],
+        "summary": "Publish a new tariff version",
+        "description": "Closes the current version and opens a successor. Nothing is edited in place, so an invoice issued under the old rates still reprices identically.",
+        "operationId": "PublishPricingPlanVersion",
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingPlanResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pricing-plans/{planId}/quote": {
+      "post": {
+        "tags": [
+          "Pricing"
+        ],
+        "summary": "Preview a charge",
+        "description": "Prices a hypothetical consumption against the plan's current version, returning the full band-by-band breakdown. Lets an admin check a tariff before any customer is billed by it.",
+        "operationId": "QuotePricingPlan",
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceQuoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceQuoteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "List invoices",
+        "description": "Admins see every invoice. A customer sees only their own — the filter is applied server-side and cannot be widened by a query parameter.",
+        "operationId": "ListInvoices",
+        "parameters": [
+          {
+            "name": "meterId",
             "in": "query",
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "uuid"
             }
           },
           {
-            "name": "to",
+            "name": "customerId",
             "in": "query",
             "schema": {
               "type": "string",
-              "format": "date-time"
+              "format": "uuid"
             }
           },
           {
-            "name": "pageSize",
+            "name": "status",
             "in": "query",
             "schema": {
-              "type": "integer",
-              "format": "int32",
-              "default": 100
+              "type": "string"
             }
           },
           {
@@ -233,6 +1422,15 @@
               "format": "int32",
               "default": 1
             }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
           }
         ],
         "responses": {
@@ -241,7 +1439,40 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReadingPageResponse"
+                  "$ref": "#/components/schemas/InvoicePageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{invoiceId}": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Get an invoice with its full breakdown",
+        "description": "Returns every line item as stored at generation: band, units, rate and amount. Nothing is recomputed, so the invoice reads the same today as on the day it was issued.",
+        "operationId": "GetInvoice",
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceResponse"
                 }
               }
             }
@@ -268,10 +1499,641 @@
           }
         }
       }
+    },
+    "/api/v1/invoices/{invoiceId}/payments": {
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Pay an invoice",
+        "description": "Records a payment against a mocked provider, with every attempt logged. Idempotent on the caller-supplied key, so a retried checkout cannot charge twice.",
+        "operationId": "RecordInvoicePayment",
+        "parameters": [
+          {
+            "name": "invoiceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing-runs": {
+      "post": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Generate invoices for a period",
+        "description": "Defaults to the previous calendar month. Idempotent: a unique index on (meter_id, period_start) means re-running cannot double-bill, and already-billed meters are reported rather than treated as errors. Meters with no readings are billed the standing charge and flagged, never silently skipped. Pass dryRun to compute and report everything without persisting.",
+        "operationId": "GenerateInvoices",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateInvoicesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingRunResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "List billing runs",
+        "operationId": "ListBillingRuns",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BillingRunResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing-runs/{runId}": {
+      "get": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get a billing run with per-meter outcomes",
+        "operationId": "GetBillingRun",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingRunResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ApiKeySummaryResponse": {
+        "required": [
+          "keyId",
+          "prefix",
+          "label",
+          "createdAtUtc",
+          "expiresAtUtc",
+          "revokedAtUtc",
+          "lastUsedAtUtc",
+          "isUsable"
+        ],
+        "type": "object",
+        "properties": {
+          "keyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "revokedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastUsedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isUsable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AssignMeterRequest": {
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "BillingRunItemResponse": {
+        "required": [
+          "meterId",
+          "meterSerial",
+          "outcome",
+          "invoiceId",
+          "invoiceNumber",
+          "consumptionM3",
+          "totalAmount",
+          "consumptionFlags",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "meterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "meterSerial": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "invoiceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "invoiceNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "consumptionM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "totalAmount": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "consumptionFlags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BillingRunResponse": {
+        "required": [
+          "id",
+          "periodStartUtc",
+          "periodEndUtc",
+          "status",
+          "isDryRun",
+          "metersConsidered",
+          "invoicesGenerated",
+          "skipped",
+          "failed",
+          "totalBilledAmount",
+          "startedAtUtc",
+          "completedAtUtc",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "periodStartUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEndUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "isDryRun": {
+            "type": "boolean"
+          },
+          "metersConsidered": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "invoicesGenerated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skipped": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalBilledAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BillingRunItemResponse"
+            }
+          }
+        },
+        "description": "The answer to \"did billing work this month?\" — per meter, with a reason for every\nmeter that was not invoiced (ADR-0007)."
+      },
+      "ConsumptionResponse": {
+        "required": [
+          "meterId",
+          "serialNumber",
+          "periodStartUtc",
+          "periodEndUtc",
+          "consumptionM3",
+          "openingTotalM3",
+          "closingTotalM3",
+          "openingReadingAtUtc",
+          "closingReadingAtUtc",
+          "readingCount",
+          "resetCount",
+          "flags",
+          "isBillableWithConfidence"
+        ],
+        "type": "object",
+        "properties": {
+          "meterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serialNumber": {
+            "type": "string"
+          },
+          "periodStartUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEndUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "consumptionM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "openingTotalM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "closingTotalM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "openingReadingAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "closingReadingAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "readingCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resetCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isBillableWithConfidence": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateMeterRequest": {
+        "required": [
+          "serialNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "serialNumber": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "locationDescription": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "installedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "customerId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "pricingPlanId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "CreatePricingPlanRequest": {
+        "required": [
+          "name",
+          "initialVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "initialVersion": {
+            "$ref": "#/components/schemas/PublishVersionRequest"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "required": [
+          "email",
+          "password",
+          "fullName",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "phoneNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "billingAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "GenerateInvoicesRequest": {
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "default": false
+          },
+          "issueImmediately": {
+            "type": "boolean",
+            "default": true
+          },
+          "periodStartUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "periodEndUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "Defaults to the previous calendar month, which is what the assignment asks for.\nAn explicit period is accepted for re-runs and back-fills."
+      },
       "HttpValidationProblemDetails": {
         "type": "object",
         "properties": {
@@ -316,6 +2178,332 @@
             }
           }
         }
+      },
+      "InvoiceLineResponse": {
+        "required": [
+          "sortOrder",
+          "kind",
+          "description",
+          "bandFromM3",
+          "bandToM3",
+          "unitsM3",
+          "ratePerM3",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "bandFromM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "bandToM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "unitsM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "ratePerM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "amount": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "InvoicePageResponse": {
+        "required": [
+          "page",
+          "pageSize",
+          "totalCount",
+          "invoices"
+        ],
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "invoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceResponse"
+            }
+          }
+        }
+      },
+      "InvoiceResponse": {
+        "required": [
+          "id",
+          "invoiceNumber",
+          "meterId",
+          "meterSerial",
+          "customerId",
+          "customerName",
+          "periodStartUtc",
+          "periodEndUtc",
+          "openingTotalM3",
+          "closingTotalM3",
+          "openingReadingAtUtc",
+          "closingReadingAtUtc",
+          "consumptionM3",
+          "readingCount",
+          "consumptionFlags",
+          "pricingPlanName",
+          "pricingPlanVersionNumber",
+          "fixedCharge",
+          "usageCharge",
+          "taxRatePercent",
+          "taxAmount",
+          "totalAmount",
+          "amountPaid",
+          "amountDue",
+          "currency",
+          "status",
+          "issuedAtUtc",
+          "dueAtUtc",
+          "paidAtUtc",
+          "lines"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "invoiceNumber": {
+            "type": "string"
+          },
+          "meterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "meterSerial": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "customerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "periodStartUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEndUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "openingTotalM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "closingTotalM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "openingReadingAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "closingReadingAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "consumptionM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "readingCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "consumptionFlags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pricingPlanName": {
+            "type": "string"
+          },
+          "pricingPlanVersionNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fixedCharge": {
+            "type": "number",
+            "format": "double"
+          },
+          "usageCharge": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxRatePercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "totalAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "amountPaid": {
+            "type": "number",
+            "format": "double"
+          },
+          "amountDue": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "issuedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "dueAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "paidAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLineResponse"
+            }
+          }
+        }
+      },
+      "IssueApiKeyRequest": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresInDays": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "IssuedApiKeyResponse": {
+        "required": [
+          "keyId",
+          "meterId",
+          "meterSerial",
+          "apiKey",
+          "prefix",
+          "headerName",
+          "expiresAtUtc",
+          "warning"
+        ],
+        "type": "object",
+        "properties": {
+          "keyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "meterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "meterSerial": {
+            "type": "string"
+          },
+          "apiKey": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "headerName": {
+            "type": "string"
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "warning": {
+            "type": "string"
+          }
+        },
+        "description": "The plaintext key appears here and nowhere else, ever. It is not stored, cannot\nbe recovered, and is not written to the audit log — only its prefix is."
       },
       "LoginRequest": {
         "required": [
@@ -369,6 +2557,475 @@
           }
         }
       },
+      "MeterPageResponse": {
+        "required": [
+          "page",
+          "pageSize",
+          "totalCount",
+          "meters"
+        ],
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "meters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MeterResponse"
+            }
+          }
+        }
+      },
+      "MeterResponse": {
+        "required": [
+          "id",
+          "serialNumber",
+          "model",
+          "locationDescription",
+          "installedAtUtc",
+          "status",
+          "customerId",
+          "customerName",
+          "pricingPlanId",
+          "pricingPlanName",
+          "desiredSupplyState",
+          "reportedSupplyState",
+          "supplyStateReason",
+          "lastReadingAtUtc",
+          "latestTotalM3"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serialNumber": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "locationDescription": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "installedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "customerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pricingPlanId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "pricingPlanName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "desiredSupplyState": {
+            "type": "string"
+          },
+          "reportedSupplyState": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "supplyStateReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastReadingAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "latestTotalM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "MonthlyConsumptionResponse": {
+        "required": [
+          "meterId",
+          "serialNumber",
+          "fromUtc",
+          "toUtc",
+          "totalConsumptionM3",
+          "months"
+        ],
+        "type": "object",
+        "properties": {
+          "meterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serialNumber": {
+            "type": "string"
+          },
+          "fromUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "toUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalConsumptionM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConsumptionResponse"
+            }
+          }
+        }
+      },
+      "PaymentResponse": {
+        "required": [
+          "id",
+          "invoiceId",
+          "amount",
+          "currency",
+          "status",
+          "provider",
+          "providerReference",
+          "initiatedAtUtc",
+          "completedAtUtc",
+          "failureReason",
+          "invoiceAmountDue",
+          "invoiceStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "invoiceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "providerReference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "initiatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "failureReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "invoiceAmountDue": {
+            "type": "number",
+            "format": "double"
+          },
+          "invoiceStatus": {
+            "type": "string"
+          }
+        }
+      },
+      "PriceLineResponse": {
+        "required": [
+          "description",
+          "fromM3",
+          "toM3",
+          "unitsM3",
+          "ratePerM3",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "fromM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "toM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "unitsM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "ratePerM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "amount": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "PriceQuoteRequest": {
+        "required": [
+          "consumptionM3"
+        ],
+        "type": "object",
+        "properties": {
+          "consumptionM3": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "description": "Lets an admin see what a tariff would charge before publishing it."
+      },
+      "PriceQuoteResponse": {
+        "required": [
+          "planId",
+          "planName",
+          "planVersionNumber",
+          "currency",
+          "consumptionM3",
+          "lines",
+          "fixedCharge",
+          "usageCharge",
+          "subtotal",
+          "taxRatePercent",
+          "taxAmount",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "planName": {
+            "type": "string"
+          },
+          "planVersionNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "consumptionM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceLineResponse"
+            }
+          },
+          "fixedCharge": {
+            "type": "number",
+            "format": "double"
+          },
+          "usageCharge": {
+            "type": "number",
+            "format": "double"
+          },
+          "subtotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxRatePercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "PricingPlanResponse": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "currency",
+          "isDefault",
+          "meterCount",
+          "versions"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "meterCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricingPlanVersionResponse"
+            }
+          }
+        }
+      },
+      "PricingPlanVersionResponse": {
+        "required": [
+          "id",
+          "versionNumber",
+          "mode",
+          "slabMode",
+          "fixedCharge",
+          "ratePerM3",
+          "taxRatePercent",
+          "effectiveFromUtc",
+          "effectiveToUtc",
+          "isCurrent",
+          "slabs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "slabMode": {
+            "type": "string"
+          },
+          "fixedCharge": {
+            "type": "number",
+            "format": "double"
+          },
+          "ratePerM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "taxRatePercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "effectiveFromUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "effectiveToUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isCurrent": {
+            "type": "boolean"
+          },
+          "slabs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SlabResponse"
+            }
+          }
+        }
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -404,6 +3061,55 @@
             ]
           }
         }
+      },
+      "PublishVersionRequest": {
+        "required": [
+          "mode"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "fixedCharge": {
+            "type": "number",
+            "format": "double",
+            "default": 0
+          },
+          "ratePerM3": {
+            "type": "number",
+            "format": "double",
+            "default": 0
+          },
+          "taxRatePercent": {
+            "type": "number",
+            "format": "double",
+            "default": 0
+          },
+          "slabMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "effectiveFromUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "slabs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SlabRequest"
+            }
+          }
+        },
+        "description": "Publishing a version never edits the current one — it closes it and opens a\nsuccessor, so an invoice issued last month still prices exactly as it did."
       },
       "ReadingBatchRequest": {
         "required": [
@@ -611,6 +3317,249 @@
             ]
           }
         }
+      },
+      "RecordPaymentRequest": {
+        "required": [
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "provider": {
+            "type": "string",
+            "default": "mock"
+          },
+          "providerReference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "idempotencyKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SlabRequest": {
+        "required": [
+          "fromM3",
+          "ratePerM3"
+        ],
+        "type": "object",
+        "properties": {
+          "fromM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "ratePerM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "toM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "SlabResponse": {
+        "required": [
+          "sortOrder",
+          "fromM3",
+          "toM3",
+          "ratePerM3"
+        ],
+        "type": "object",
+        "properties": {
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fromM3": {
+            "type": "number",
+            "format": "double"
+          },
+          "toM3": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "ratePerM3": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SupplyStateRequest": {
+        "required": [
+          "desiredState",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "desiredState": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateMeterRequest": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "locationDescription": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pricingPlanId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "UpdateUserRequest": {
+        "required": [
+          "fullName"
+        ],
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          },
+          "phoneNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "billingAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "UserPageResponse": {
+        "required": [
+          "page",
+          "pageSize",
+          "totalCount",
+          "users"
+        ],
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserResponse"
+            }
+          }
+        }
+      },
+      "UserResponse": {
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "role",
+          "phoneNumber",
+          "billingAddress",
+          "isActive",
+          "meterCount",
+          "createdAtUtc",
+          "lastLoginAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "phoneNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "billingAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "meterCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastLoginAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -633,10 +3582,25 @@
       "name": "Authentication"
     },
     {
-      "name": "Ingestion"
+      "name": "Users"
     },
     {
       "name": "Meters"
+    },
+    {
+      "name": "Consumption"
+    },
+    {
+      "name": "Ingestion"
+    },
+    {
+      "name": "Pricing"
+    },
+    {
+      "name": "Invoices"
+    },
+    {
+      "name": "Billing"
     }
   ]
 }
