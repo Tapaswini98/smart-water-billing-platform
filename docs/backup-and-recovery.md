@@ -48,18 +48,32 @@ Used together: the nightly dump is the base, WAL is everything since.
 
 | What | When | Retained | Where |
 |---|---|---|---|
-| Full logical backup | Daily, 02:00 local | 30 days | Local disk + NAS |
-| Full logical backup | Weekly, Sunday | 12 weeks | NAS + object storage |
-| Full logical backup | Monthly, 1st | 7 years | Object storage (Glacier tier) |
-| WAL segments | Continuous | 30 days | Local disk + object storage |
-| Pre-upgrade backup | Before every deployment | 90 days | Local disk + object storage |
+| RDS automated snapshot | Daily, during the backup window | 35 days | Managed by RDS, cross-region copy enabled |
+| Full logical backup (`pg_dump`) | Daily, 02:00 local | 30 days | S3 Standard |
+| Full logical backup | Weekly, Sunday | 12 weeks | S3 Standard → Standard-IA |
+| Full logical backup | Monthly, 1st | 7 years | S3 Glacier Deep Archive |
+| Transaction logs | Continuous | 35 days | RDS, enabling PITR to any second |
+| Pre-deployment backup | Before every release | 90 days | S3 Standard |
+
+**Two mechanisms on purpose.** RDS automated snapshots and PITR are the fast path —
+restore to any second in the last 35 days with a console action. The `pg_dump`
+logical backups are the *portable* path: they restore onto any PostgreSQL anywhere,
+including a developer laptop or an on-premise box, and they are what protects
+against losing the AWS account itself. A snapshot is useless if you cannot reach the
+account that holds it.
 
 Seven years on monthlies is deliberate: billing records are financial records, and
 the retention is set by the customer's tax and utility-regulator obligations rather
 than by engineering preference.
 
-**Scheduling** — a `systemd` timer rather than cron, because it survives a missed
-window (`Persistent=true`) and its failures are visible in `systemctl status`:
+**Scheduling on AWS** — EventBridge Scheduler triggers a one-off ECS task running
+the same image with `scripts/backup.sh`. A CloudWatch alarm fires on task failure,
+because a backup schedule nobody is alerted about is a schedule that silently
+stopped months ago.
+
+**Scheduling on-premise** — a `systemd` timer rather than cron, because it survives a
+missed window (`Persistent=true`) and its failures are visible in
+`systemctl status`:
 
 ```ini
 # /etc/systemd/system/waterbilling-backup.timer
@@ -88,20 +102,33 @@ restic -r s3:s3.amazonaws.com/waterbilling-backups forget \
 
 The numbers this design actually achieves, not the ones we would like:
 
+**On AWS:**
+
 | Scenario | RPO (data lost) | RTO (time to service) |
 |---|---|---|
-| Disk failure, RAID 1 intact | 0 | ~0 — degraded but serving |
-| Database corruption, PITR available | ≤ 5 min (`archive_timeout`) | 30–60 min |
-| Database corruption, nightly dump only | ≤ 24 h | 15–30 min |
-| Total site loss, offsite restore | ≤ 24 h | 4–8 h, dominated by hardware procurement |
+| AZ failure | 0 | 1–2 min, RDS Multi-AZ failover is automatic |
+| Fargate task failure | 0 | Seconds — ECS replaces it behind the load balancer |
+| Database corruption or bad migration | ≤ 5 min via PITR | 30–60 min |
 | Accidental deletion, caught quickly | ≤ 5 min via PITR | 30–60 min |
+| Region failure | ≤ 24 h (cross-region snapshot copy) | 2–4 h to rebuild in another region |
+| AWS account loss or compromise | ≤ 24 h | 4–8 h, restoring the logical dump elsewhere |
 
-**The honest caveat:** total site loss has an RTO measured in hours to days, because
-it includes sourcing and installing replacement hardware. Ingestion is unavailable
-in the meantime — but meters keep counting, and their gateways buffer. Readings
-replay on reconnect, so the *measurement* record survives even though the service
-did not. Consumption is derived from TOTAL anchors rather than from counting
-readings, so a period spanning the outage still bills correctly.
+**On-premise (single box):**
+
+| Scenario | RPO | RTO |
+|---|---|---|
+| Disk failure, RAID 1 intact | 0 | ~0 — degraded but serving |
+| Both disks fail | ≤ 24 h | 4–8 h |
+| Total site loss | ≤ 24 h | 4–8 h, dominated by hardware procurement |
+
+**The honest caveat**, which applies to both: an outage long enough to matter has an
+RTO measured in hours, because it includes rebuilding infrastructure. Ingestion is
+unavailable in the meantime — but meters keep counting and their gateways buffer.
+Readings replay on reconnect, so the *measurement* record survives even though the
+service did not. Consumption is derived from TOTAL anchors rather than by counting
+readings, so a period spanning the outage still bills correctly. That property is
+what makes an hours-long RTO tolerable for a monthly billing cycle, and it is the
+same property ADR-0012 relies on.
 
 ## Restore procedures
 
@@ -162,7 +189,9 @@ Recover to **just before** the damaging event, then verify before promoting. Kee
 | **Both disks fail** | Rebuild the host, restore the latest dump, replay WAL to the failure point. RTO 4–8 h. |
 | **Database corruption** | Stop writers immediately. Do **not** restart the API — a running application will write more bad data. PITR to just before corruption. |
 | **Accidental `DELETE` / bad migration** | PITR to just before it. If caught within minutes, RPO is ≤ 5 min. |
-| **Site loss (fire, flood, theft)** | Restore from object storage onto replacement hardware. Meter gateways buffer and replay, so measurement history survives the gap. |
+| **AZ failure (AWS)** | RDS fails over to the standby automatically; ECS reschedules tasks in the surviving AZ. No action required. |
+| **Region failure (AWS)** | Rebuild from Terraform in the secondary region, restore the cross-region snapshot copy. |
+| **Site loss (on-premise: fire, flood, theft)** | Restore from S3 onto replacement hardware. Meter gateways buffer and replay, so measurement history survives the gap. |
 | **Ransomware** | Offsite copies are immutable: S3 Object Lock in compliance mode, so nothing — including a compromised admin credential — can delete them inside the retention window. This is the specific reason offsite is object storage with a lock rather than a mounted NAS share, which encrypts along with everything else. |
 | **Backup itself is corrupt** | Caught before it matters: `verify-restore.sh` runs in CI on every push, and nightly against the previous night's dump. |
 

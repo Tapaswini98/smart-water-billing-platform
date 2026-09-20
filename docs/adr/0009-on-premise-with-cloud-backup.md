@@ -1,6 +1,13 @@
 # ADR-0009: On-premise billing path, cloud for backup and aggregation
 
-**Status:** Accepted · **Date:** 2026-09-19
+**Status:** Superseded by [ADR-0012](0012-aws-as-deployment-target.md) · **Date:** 2026-09-19
+
+> **Superseded 2026-09-20.** The reasoning below is sound about the requirement —
+> ingestion must survive a WAN outage — but wrong about where it is satisfied. Site
+> gateways already buffer and replay, so that resilience exists at the edge
+> regardless of where the database runs. AWS is now the primary target; see
+> [ADR-0012](0012-aws-as-deployment-target.md). Kept unedited, because an ADR that
+> is quietly rewritten stops being a record.
 
 ## Context
 

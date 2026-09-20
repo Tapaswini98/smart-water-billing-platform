@@ -15,6 +15,7 @@ verified — see [Backup and disaster recovery](#backup-and-disaster-recovery).
 
 - [Quick start](#quick-start)
 - [What is implemented](#what-is-implemented)
+- [Architecture](#architecture)
 - [How it works](#how-it-works)
 - [Database schema](#database-schema)
 - [API walkthrough](#api-walkthrough)
@@ -116,6 +117,20 @@ so the walkthrough works immediately, without creating anything first.
 | Web UI | React + TypeScript, client generated from the OpenAPI contract |
 | Webhook data egress | **Not built** — see [what I would improve](#what-i-would-improve-with-more-time) |
 | Water tanks (level sensors) | **Not built** — see [what I would improve](#what-i-would-improve-with-more-time) |
+
+## Architecture
+
+Diagrams — system context, AWS deployment, the ingestion-to-invoice flow, the two
+authentication schemes, and the data model — are in
+[`docs/architecture.md`](docs/architecture.md). They render inline on GitHub.
+
+Deployment target is **AWS** ([ADR-0012](docs/adr/0012-aws-as-deployment-target.md)):
+CloudFront and S3 for the web client, ECS Fargate behind an ALB for the API, and RDS
+PostgreSQL Multi-AZ. The `web` container exists only for local development — on AWS
+CloudFront does nginx's job of serving the SPA and routing `/api/*`.
+
+On-premise remains supported and is roughly 2.4× cheaper over five years; the
+comparison is in [`docs/infrastructure-sizing.md`](docs/infrastructure-sizing.md).
 
 ## How it works
 
@@ -255,9 +270,10 @@ Each states the decision, the reason, and the point at which it should be revisi
 | [0006](docs/adr/0006-time-and-billing-periods.md) | Store UTC, bill on a configured offset, half-open periods, no proration |
 | [0007](docs/adr/0007-idempotent-invoice-generation.md) | Idempotent invoice generation with per-meter run reporting |
 | [0008](docs/adr/0008-postgresql-single-node.md) | Single-node PostgreSQL — with the arithmetic that justifies it and the thresholds that would change it |
-| [0009](docs/adr/0009-on-premise-with-cloud-backup.md) | On-premise billing path, cloud for backup and multi-site aggregation |
+| [0009](docs/adr/0009-on-premise-with-cloud-backup.md) | On-premise billing path, cloud for backup — _superseded by 0012_ |
 | [0010](docs/adr/0010-soft-delete-policy.md) | Soft delete for master data, never for financial records |
 | [0011](docs/adr/0011-frontend-architecture.md) | React SPA with a generated API client; no client-side state library |
+| [0012](docs/adr/0012-aws-as-deployment-target.md) | AWS as the deployment target; gateway buffering provides WAN resilience |
 
 ---
 
@@ -315,16 +331,30 @@ These behaviours were confirmed manually against PostgreSQL with 44,041 seeded r
 
 ## Infrastructure sizing
 
-Full recommendation with the supporting arithmetic in
+Three AWS reference configurations, each costed line by line in
 [`docs/infrastructure-sizing.md`](docs/infrastructure-sizing.md).
 
-The short version: 300 meters reporting every 15 minutes is **28,800 rows/day**,
-**~1.6 GB/year**, at an average of **0.33 writes per second** — measured from the
-seeded database, not estimated. That is three orders of magnitude below what a
-4-core / 16 GB box with an SSD handles comfortably, which is *why* there is no
-queue, no sharding and no Kubernetes. The document gives a bill of materials for
-each of the three scales, and states the row counts at which each of those
-decisions should be revisited.
+| Scale | Configuration | Monthly | Per meter |
+|---|---|---:|---:|
+| **Small** (≤ 50 meters) | Single EC2 running the same `docker compose` | **$21** | $0.41 |
+| Small — managed alternative | ECS Fargate + RDS + ALB | $64 | $1.29 |
+| **Medium** (≤ 300 meters) | ECS Fargate ×2 + RDS Multi-AZ + CloudFront | **$256** | $0.85 |
+| **Large** (2,000 meters) | The above scaled, plus read replica and WAF | **$977** | $0.49 |
+
+`ap-south-1`, on-demand list prices, September 2026. One-year Savings Plans and
+Reserved Instances take medium to ~$212/month and large to ~$796/month.
+
+The sizing is driven by one measured number: 300 meters reporting every 15 minutes
+is **0.33 writes per second** and ~1.6 GB/year — taken from the seeded database, not
+estimated. That is three orders of magnitude below what a single PostgreSQL instance
+handles, which is *why* there is no queue, no sharding and no Kubernetes. The
+document lists what was deliberately left out and the volume at which each would
+become correct.
+
+It also gives the honest comparison: at 300 meters, five-year TCO is **$12.7k on AWS
+against $5.2k on-premise**. The premium buys Multi-AZ failover, managed backups and
+no hardware to procure or replace. Whether that is worth it is the customer's call —
+the numbers are there so they can make it.
 
 ## Backup and disaster recovery
 
@@ -351,24 +381,49 @@ and the check runs in CI.
 
 ## Deployment
 
-Platform, services, containerisation and CI/CD in
-[`docs/deployment.md`](docs/deployment.md), with
-[`scripts/deploy.sh`](scripts/deploy.sh) implementing it: pre-deployment backup,
-recreate, health check, automatic rollback on failure.
+Platform, services and CI/CD in [`docs/deployment.md`](docs/deployment.md), with
+[`scripts/deploy.sh`](scripts/deploy.sh) implementing the on-premise path
+(pre-deployment backup → recreate → health check → automatic rollback).
 
-Summary: **on-premise for the billing-critical path** (meters are on the LAN;
-ingestion and invoicing must survive a WAN outage), **AWS for what the cloud is
-strictly better at** (offsite backup to S3 + Glacier, ECR, GitHub Actions CI).
-Docker Compose, not Kubernetes — with the conditions under which that would change
-stated rather than implied.
+**AWS**, with each service choice argued against its alternative: ECS Fargate rather
+than EKS ($73/month for a control plane to schedule four containers) or Lambda (a
+steady 24/7 rate is where always-on containers win); RDS PostgreSQL rather than
+Aurora (20–30% more for a scaling problem that does not exist); CloudFront + S3
+rather than a second container serving static files.
+
+Release is OIDC from GitHub to an IAM role — no long-lived AWS keys in repository
+secrets — with ECS rolling deployment and a CloudWatch alarm that rolls back on a
+5xx spike. From the medium tier upward, migrations move out of application startup
+into a dedicated pipeline task, per the threshold in
+[ADR-0008](docs/adr/0008-postgresql-single-node.md).
 
 ## Project plan
 
-A 12-week waterfall plan for three developers is in
-[`docs/sprint-plan.md`](docs/sprint-plan.md): six phases with entry and exit criteria,
-a named gate reviewer at each boundary, a week-by-week schedule showing the critical
-path and slack, an eight-item risk register, and an honest section on where waterfall
-fits this project and where it is risky.
+[`docs/sprint-plan.md`](docs/sprint-plan.md) — **six weeks, three developers,
+shipping continuously.**
+
+The brief asks for waterfall. Waterfall's value is its decision gates; its cost is
+serialisation. This plan keeps all five gates — scope, design, billing verified, UAT,
+go-live — and drops the serialisation, because a team that cannot deploy for five
+weeks does not discover it was wrong until week six. Every week ends with something
+on staging, and week 4 is the pivot: the first invoice generated from real readings.
+
+It includes what a plan written under deadline pressure usually leaves out:
+
+- **Scope triage agreed on day one** (MoSCoW), so cutting in week 5 is a decision
+  already made rather than a negotiation at 11pm.
+- **A short list of what deadline pressure does not get to touch** — boundary tests
+  on consumption and pricing, authorization tests, backup verification in CI,
+  two-person review on migrations. Short precisely so it holds when the week is bad.
+- **A technical debt ledger with payback dates**, where items past their date block
+  new feature work. Debt without a date is a hope, not a decision.
+- **Sustained overtime as a tracked risk** with "cut scope, not weekends" as the
+  mitigation.
+- DORA targets, and the deployment pipeline that makes daily production releases
+  reasonable rather than reckless.
+
+The pure 12-week serial variant is included too, for a customer whose regulator
+requires documented sign-off before implementation.
 
 ## What I would improve with more time
 
@@ -435,6 +490,7 @@ tests/
 web/                            React + TypeScript client. See web/README.md.
 openapi/                        Contract emitted by the API build; the web client is generated from it.
 docs/
+  architecture.md               System, AWS deployment, data flow and schema diagrams.
   adr/                          Architecture decision records.
 db/                             Generated schema DDL and migration instructions.
 scripts/                        Backup, restore and restore-verification.
