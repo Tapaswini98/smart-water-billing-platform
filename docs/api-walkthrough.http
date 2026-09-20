@@ -228,12 +228,389 @@ Authorization: Bearer {{adminToken}}
 
 
 ###############################################################################
-# 4. Administration — users, meters, pricing, billing
-# (pending)
+# 4. Consumption — the assignment's "view consumption info"
 ###############################################################################
+
+### Consumption for the current month
+GET {{host}}/api/v1/meters/{{meterId}}/consumption
+Authorization: Bearer {{adminToken}}
+
+### Month by month.
+### Note meter WM-2024-0001: its August figure carries MeterResetDuringPeriod,
+### because the seeded register was replaced mid-month. Consumption is summed
+### ACROSS the discontinuity — the figure is positive, not negative.
+GET {{host}}/api/v1/meters/{{meterId}}/consumption/monthly?months=6
+Authorization: Bearer {{adminToken}}
+
+### Meter WM-2024-0003 has a seeded 30-hour reporting gap. Consumption is still
+### correct, because it comes from the anchor readings either side rather than
+### from counting readings.
+GET {{host}}/api/v1/meters/{{otherMeterId}}/consumption/monthly?months=6
+Authorization: Bearer {{adminToken}}
 
 
 ###############################################################################
-# 5. Invoices
-# (pending)
+# 5. Administration — users
 ###############################################################################
+
+### List users
+GET {{host}}/api/v1/users
+Authorization: Bearer {{adminToken}}
+
+### Create a customer
+# @name newCustomer
+POST {{host}}/api/v1/users
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "email": "priya@example.com",
+  "password": "Customer#12345",
+  "fullName": "Priya Nair",
+  "role": "Customer",
+  "billingAddress": "31 Riverside Walk"
+}
+
+@newCustomerId = {{newCustomer.response.body.id}}
+
+### Duplicate email — 409, not a 500
+POST {{host}}/api/v1/users
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "email": "priya@example.com",
+  "password": "Customer#12345",
+  "fullName": "Priya Nair",
+  "role": "Customer"
+}
+
+### Weak password — 422 with the specific rule
+POST {{host}}/api/v1/users
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "email": "short@example.com", "password": "abc", "fullName": "Too Short", "role": "Customer" }
+
+### A customer cannot create users — 403
+POST {{host}}/api/v1/users
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{ "email": "sneaky@example.com", "password": "abcdefghij", "fullName": "Nope", "role": "Admin" }
+
+
+###############################################################################
+# 6. Administration — meters
+###############################################################################
+
+### Create a meter. The ingestion key is returned HERE AND ONLY HERE:
+### it is hashed at rest and cannot be recovered.
+# @name newMeter
+POST {{host}}/api/v1/meters
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "serialNumber": "WM-2026-0100",
+  "model": "AquaSense 200",
+  "locationDescription": "Flat D-402 main inlet",
+  "customerId": "{{newCustomerId}}"
+}
+
+@newMeterId = {{newMeter.response.body.meterId}}
+@newMeterKey = {{newMeter.response.body.apiKey}}
+
+### Immediately usable — post a reading with the key just issued
+POST {{host}}/api/v1/ingest/readings
+Content-Type: application/json
+X-Meter-Key: {{newMeterKey}}
+
+{ "readingAtUtc": "2026-09-20T08:00:00Z", "totalM3": 0.000, "flowM3PerHour": 0.0 }
+
+### Duplicate serial number — 409
+POST {{host}}/api/v1/meters
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "serialNumber": "WM-2026-0100" }
+
+### List a meter's keys — prefixes and lifecycle only, never the key itself
+GET {{host}}/api/v1/meters/{{newMeterId}}/api-keys
+Authorization: Bearer {{adminToken}}
+
+### Issue a second key with an expiry (for rotation: issue, deploy, then revoke)
+POST {{host}}/api/v1/meters/{{newMeterId}}/api-keys
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "label": "Rotation 2026-Q4", "expiresInDays": 90 }
+
+### Reassign a meter
+PUT {{host}}/api/v1/meters/{{newMeterId}}/assignment
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "customerId": "00000000-0000-0000-0000-0000000000c1" }
+
+### Close the supply valve. The reason is mandatory and is audited —
+### cutting off a household's water is a contestable action.
+PUT {{host}}/api/v1/meters/{{newMeterId}}/supply
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "desiredState": "Closed", "reason": "Non-payment: invoice overdue by 45 days" }
+
+### Missing reason — 422
+PUT {{host}}/api/v1/meters/{{newMeterId}}/supply
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "desiredState": "Closed", "reason": "" }
+
+### Reopen it
+PUT {{host}}/api/v1/meters/{{newMeterId}}/supply
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "desiredState": "Open", "reason": "Account settled in full" }
+
+
+###############################################################################
+# 7. Pricing — "fixed per unit OR slab based, configurable by admin"
+###############################################################################
+
+### List plans with full version history
+GET {{host}}/api/v1/pricing-plans
+Authorization: Bearer {{adminToken}}
+
+### Create a progressive (telescopic) slab plan
+# @name slabPlan
+POST {{host}}/api/v1/pricing-plans
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Domestic Slab 2027",
+  "description": "Rates rising with consumption, to discourage heavy use",
+  "currency": "INR",
+  "initialVersion": {
+    "mode": "Slab",
+    "slabMode": "Progressive",
+    "fixedCharge": 120,
+    "taxRatePercent": 18,
+    "slabs": [
+      { "fromM3": 0,  "toM3": 15,   "ratePerM3": 14 },
+      { "fromM3": 15, "toM3": 40,   "ratePerM3": 26 },
+      { "fromM3": 40, "toM3": null, "ratePerM3": 55 }
+    ]
+  }
+}
+
+@slabPlanId = {{slabPlan.response.body.id}}
+
+### Create a fixed per-unit plan
+POST {{host}}/api/v1/pricing-plans
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Commercial Flat 2027",
+  "initialVersion": { "mode": "FlatRate", "fixedCharge": 200, "ratePerM3": 34, "taxRatePercent": 18 }
+}
+
+### A plan with a GAP between bands — 422, naming the exact bands.
+### The same domain validator runs here and inside the pricing engine, so the
+### API and the billing run cannot disagree about what a valid tariff is.
+POST {{host}}/api/v1/pricing-plans
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Broken Bands",
+  "initialVersion": {
+    "mode": "Slab",
+    "slabs": [
+      { "fromM3": 0,  "toM3": 10,   "ratePerM3": 5 },
+      { "fromM3": 15, "toM3": null, "ratePerM3": 9 }
+    ]
+  }
+}
+
+### A plan whose last band is CLOSED — 422: some consumption would be unpriceable
+POST {{host}}/api/v1/pricing-plans
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Bounded Top Band",
+  "initialVersion": { "mode": "Slab", "slabs": [{ "fromM3": 0, "toM3": 10, "ratePerM3": 5 }] }
+}
+
+### Preview a charge before any customer is billed by it.
+### 30 m3 on the plan above: (15 x 14) + (15 x 26) = 600, + 120 standing, + 18% tax.
+POST {{host}}/api/v1/pricing-plans/{{slabPlanId}}/quote
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "consumptionM3": 30 }
+
+### Exactly on a band boundary — 15 m3 is entirely in band 1.
+### Bands are upper-inclusive, (from, to], so both slab modes agree here.
+POST {{host}}/api/v1/pricing-plans/{{slabPlanId}}/quote
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "consumptionM3": 15 }
+
+### One millilitre past it — band 2 opens
+POST {{host}}/api/v1/pricing-plans/{{slabPlanId}}/quote
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "consumptionM3": 15.001 }
+
+### Publish NEW RATES. This does not edit version 1 — it closes it and opens
+### version 2, so invoices already issued under version 1 still price as version 1.
+POST {{host}}/api/v1/pricing-plans/{{slabPlanId}}/versions
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "mode": "Slab",
+  "slabMode": "Progressive",
+  "fixedCharge": 140,
+  "taxRatePercent": 18,
+  "slabs": [
+    { "fromM3": 0,  "toM3": 15,   "ratePerM3": 16 },
+    { "fromM3": 15, "toM3": 40,   "ratePerM3": 30 },
+    { "fromM3": 40, "toM3": null, "ratePerM3": 62 }
+  ]
+}
+
+### Both versions are now visible, with their effective windows
+GET {{host}}/api/v1/pricing-plans/{{slabPlanId}}
+Authorization: Bearer {{adminToken}}
+
+
+###############################################################################
+# 8. Billing — "generate invoices for all meters for previous month"
+###############################################################################
+
+### DRY RUN first. Computes and reports everything, persists nothing.
+POST {{host}}/api/v1/billing-runs
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "dryRun": true }
+
+### Generate for real.
+### Note the per-meter outcomes: the unassigned meter is reported as Skipped WITH
+### A REASON rather than silently omitted, and a meter that reported nothing would
+### be billed the standing charge and flagged rather than dropped from the series.
+POST {{host}}/api/v1/billing-runs
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "dryRun": false, "issueImmediately": true }
+
+### Run the SAME PERIOD again. Every meter comes back AlreadyBilled and no new
+### invoice is created — a unique index on (meter_id, period_start) makes
+### double-billing impossible at the storage layer, not merely unlikely in code.
+POST {{host}}/api/v1/billing-runs
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "dryRun": false, "issueImmediately": true }
+
+### A future period — 422
+POST {{host}}/api/v1/billing-runs
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "periodStartUtc": "2030-01-01T00:00:00Z", "periodEndUtc": "2030-02-01T00:00:00Z" }
+
+### Run history
+GET {{host}}/api/v1/billing-runs
+Authorization: Bearer {{adminToken}}
+
+
+###############################################################################
+# 9. Invoices — "customer can view current and previous invoices"
+###############################################################################
+
+### Admin sees every invoice
+# @name allInvoices
+GET {{host}}/api/v1/invoices
+Authorization: Bearer {{adminToken}}
+
+@invoiceId = {{allInvoices.response.body.invoices[0].id}}
+
+### Full breakdown: opening and closing readings, the tariff version cited, and
+### every priced band as stored at generation. Nothing is recomputed, so this
+### invoice reads today exactly as it did when issued.
+GET {{host}}/api/v1/invoices/{{invoiceId}}
+Authorization: Bearer {{adminToken}}
+
+### A customer sees only their own
+# @name myInvoices
+GET {{host}}/api/v1/invoices
+Authorization: Bearer {{customerToken}}
+
+@myInvoiceId = {{myInvoices.response.body.invoices[0].id}}
+
+### Trying to widen the scope with a query parameter — ignored.
+### Scoping is applied before any caller-supplied filter.
+GET {{host}}/api/v1/invoices?customerId=00000000-0000-0000-0000-0000000000c2
+Authorization: Bearer {{customerToken}}
+
+### Reading another customer's invoice by id — 403
+GET {{host}}/api/v1/invoices/{{invoiceId}}
+Authorization: Bearer {{customerToken}}
+
+
+###############################################################################
+# 10. Payments — mocked provider, real idempotency
+###############################################################################
+
+### Pay an invoice
+POST {{host}}/api/v1/invoices/{{myInvoiceId}}/payments
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{ "amount": 100, "provider": "mock", "idempotencyKey": "checkout-demo-0001" }
+
+### The SAME idempotency key again — a retried checkout.
+### Returns the original payment; no second charge, no second row.
+POST {{host}}/api/v1/invoices/{{myInvoiceId}}/payments
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{ "amount": 100, "provider": "mock", "idempotencyKey": "checkout-demo-0001" }
+
+### Overpayment — 422
+POST {{host}}/api/v1/invoices/{{myInvoiceId}}/payments
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{ "amount": 9999999, "provider": "mock", "idempotencyKey": "checkout-demo-0002" }
+
+
+###############################################################################
+# 11. Soft deletes
+###############################################################################
+
+### Soft-delete a meter. Its readings and invoices are untouched — they are the
+### evidence behind bills already issued.
+DELETE {{host}}/api/v1/meters/{{newMeterId}}
+Authorization: Bearer {{adminToken}}
+
+### It no longer appears in listings
+GET {{host}}/api/v1/meters?search=WM-2026-0100
+Authorization: Bearer {{adminToken}}
+
+### Deleting the last active administrator — 409.
+### Losing it would lock everyone out with no recovery short of editing the
+### database by hand.
+DELETE {{host}}/api/v1/users/00000000-0000-0000-0000-0000000000a1
+Authorization: Bearer {{adminToken}}

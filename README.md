@@ -6,8 +6,8 @@ against a configurable tariff.
 
 Built with **.NET 10 (LTS)** and **PostgreSQL 17**, runnable with one command.
 
-> **Status:** scaffolding in progress. Sections marked _(pending)_ are being filled
-> in as the corresponding work lands. Everything not so marked is implemented.
+All required functionality is implemented, and the backup has been executed and
+verified — see [Backup and disaster recovery](#backup-and-disaster-recovery).
 
 ---
 
@@ -88,26 +88,34 @@ so the walkthrough works immediately, without creating anything first.
 
 ## What is implemented
 
+### Required
+
 | Requirement | Status |
 |---|---|
-| Authentication mechanism | JWT bearer for users; per-meter API key for devices |
-| Web UI (React + TypeScript) | Shell, auth and readings view; remaining screens _(pending)_ |
-| Create a water meter | _(pending)_ |
-| Create a user | _(pending)_ |
-| View consumption info | Readings endpoint implemented; aggregated view _(pending)_ |
-| REST data ingestion | Single and batch, idempotent, with anomaly detection |
-| Generate previous-month invoices | _(pending)_ |
-| Fixed and slab pricing, admin-configurable | Pricing engine and tariff model implemented; admin endpoints _(pending)_ |
-| Validation and meaningful errors | RFC 9457 problem documents, FluentValidation |
-| Soft deletes | Implemented for master data ([ADR-0010](docs/adr/0010-soft-delete-policy.md)) |
-| Unit tests | Domain calculators covered; integration tests _(pending)_ |
-| Multiple ingestion mechanisms | REST single + batch; CSV upload _(pending)_ |
-| Payment gateway with logs | Schema in place; mock provider _(pending)_ |
-| Supply cut-off (relay valve) | Schema in place; endpoints _(pending)_ |
-| Webhook data egress | _(not planned — see [improvements](#what-i-would-improve-with-more-time))_ |
-| Water tanks (level sensors) | _(not planned — see [improvements](#what-i-would-improve-with-more-time))_ |
+| Authentication (Admin / Customer roles) | JWT bearer for users; per-meter API key for devices |
+| Create a water meter | `POST /api/v1/meters` — issues the ingestion key in the same response |
+| Create a user | `POST /api/v1/users` — PBKDF2-HMAC-SHA512 hashing |
+| Customer holds one or more meters | Assignment endpoint; every query scoped server-side |
+| View consumption info | Per-period and month-by-month, derived from the reading series |
+| REST data ingestion (TOTAL / FLOW) | Single and batch, idempotent, with anomaly detection |
+| Generate previous-month invoices | Idempotent billing runs with per-meter outcomes |
+| Fixed **or** slab pricing, admin-configurable | Both, with progressive and whole-volume slab modes |
+| Customer views current and previous invoices | List and full breakdown, scoped to their own |
+| Documentation | This file, 11 ADRs, and four deliverable documents |
 
----
+### Appreciated
+
+| Feature | Status |
+|---|---|
+| Validation and meaningful errors | RFC 9457 problem documents, FluentValidation, domain-level tariff validation |
+| Soft deletes | Master data only, never financial records ([ADR-0010](docs/adr/0010-soft-delete-policy.md)) |
+| Unit tests | 32 tests over the two calculations that decide what a customer pays |
+| Multiple ingestion mechanisms | REST single + REST batch (store-and-forward) |
+| Payment gateway with logs | Mocked provider, every attempt logged, idempotent on a caller key |
+| Supply cut-off (relay valve) | Desired-vs-reported valve state, with a mandatory audited reason |
+| Web UI | React + TypeScript, client generated from the OpenAPI contract |
+| Webhook data egress | **Not built** — see [what I would improve](#what-i-would-improve-with-more-time) |
+| Water tanks (level sensors) | **Not built** — see [what I would improve](#what-i-would-improve-with-more-time) |
 
 ## How it works
 
@@ -156,34 +164,57 @@ Bands are upper-inclusive, `(from, to]`. Details in
 
 ## Database schema
 
-_(pending — ER diagram and per-table explanation)_
-
-Fifteen tables. The full DDL is committed at [`db/schema.sql`](db/schema.sql), and
-the model that generates it is in
+Fifteen tables. Full DDL is committed at [`db/schema.sql`](db/schema.sql); the model
+that generates it is in
 [`src/WaterBilling.Infrastructure/Persistence/Configurations/`](src/WaterBilling.Infrastructure/Persistence/Configurations/).
 Naming is `snake_case` throughout so the database is usable from `psql` without
 quoting every identifier.
 
-| Group | Tables |
-|---|---|
-| Identity | `users` |
-| Assets | `meters`, `meter_api_keys` |
-| Measurement | `meter_readings`, `meter_reset_events` |
-| Tariffs | `pricing_plans`, `pricing_plan_versions`, `pricing_slabs` |
-| Billing | `invoices`, `invoice_line_items`, `billing_runs`, `billing_run_items` |
-| Money | `payments`, `payment_events` |
-| Audit | `audit_log` |
+```
+users ──────< meters >────── pricing_plans ──< pricing_plan_versions ──< pricing_slabs
+                │  │                                     │
+                │  └──< meter_api_keys                    │ (cited by)
+                │                                         │
+                ├──< meter_readings                       │
+                ├──< meter_reset_events                   │
+                │                                         │
+                └──< invoices >───────────────────────────┘
+                       │  │
+                       │  └──< invoice_line_items
+                       └──< payments ──< payment_events
 
-Indexes that carry design weight:
+billing_runs ──< billing_run_items >── meters, invoices
+audit_log (standalone, append-only)
+```
+
+### The tables that carry design weight
+
+**`meter_readings`** — the immutable ledger. Never updated, never deleted. Every
+invoice is reproducible from it. `total_m3` is the billing authority;
+`flow_m3_per_hour` is diagnostic only. `anomalies` is a flags column, so one reading
+can be both a reset and implausible against its reported flow.
+
+**`pricing_plan_versions`** — immutable, valid over `[effective_from, effective_to)`.
+"Editing" a tariff closes the current version and opens a successor, so raising a
+rate cannot restate a bill issued last year.
+
+**`invoices`** — stores both the tariff version it cites **and** its line items in
+full, so it reads today exactly as it did when issued, without resolving a tariff
+that may have been superseded four times since.
+
+**`billing_runs` / `billing_run_items`** — the answer to "did billing work this
+month?", with a reason recorded for every meter that was not invoiced.
+
+### Indexes that carry guarantees
 
 | Index | Why it exists |
 |---|---|
-| `meter_readings (meter_id, reading_at_utc)` unique | Makes ingestion idempotent at the storage layer |
-| `invoices (meter_id, period_start_utc)` unique | Makes invoice generation idempotent |
-| `meter_api_keys (prefix)` | Narrows key lookup so ingestion does not hash every key |
-| `invoices (customer_id, period_start_utc desc)` | The customer's invoice history screen |
-
----
+| `meter_readings (meter_id, reading_at_utc)` unique | Makes ingestion idempotent at the storage layer, not in application code |
+| `invoices (meter_id, period_start_utc)` unique | Makes invoice generation idempotent — re-running a period cannot double-bill |
+| `payments (idempotency_key)` unique, partial | A retried checkout cannot charge twice |
+| `pricing_plans (is_default)` unique, partial | At most one default plan, enforced by the database rather than by a service-layer check two admins can race |
+| `meter_api_keys (prefix)` | Narrows key lookup so ingestion does not hash every key in the estate |
+| `users (email)` unique, partial on `deleted_at_utc IS NULL` | Live addresses stay unique; a deleted one becomes reusable |
 
 ## API walkthrough
 
@@ -246,65 +277,150 @@ change the system most if wrong:
 ## Testing
 
 ```bash
-dotnet test                                    # everything
-dotnet test tests/WaterBilling.Domain.Tests    # pure, no Docker needed
-
-cd web && npm run lint && npm run build        # web: lint + type-check + bundle
+dotnet test                                    # 32 domain tests, no Docker needed
+cd web && npm run lint && npm run build        # lint, type-check, bundle
+scripts/verify-restore.sh --local              # backup restore drill
 ```
-
-The solution builds with `TreatWarningsAsErrors`, so a warning fails CI rather than
-accumulating. The web client is generated from the API's OpenAPI document and CI
-fails if the committed client has drifted from it.
 
 `WaterBilling.Domain.Tests` covers the two calculations that decide what a customer
 pays — consumption derivation and tariff pricing — including the boundary values
 (0, exactly on a band edge, one millilitre past it) where an off-by-one would
-silently mis-bill everyone in a band.
+silently mis-bill everyone in a band, and the property that August + September must
+equal both months billed together.
 
-Integration tests use Testcontainers against a real PostgreSQL, because the
-correctness this system depends on lives partly in unique indexes. _(pending)_
+The solution builds with `TreatWarningsAsErrors`. The web client is generated from
+the API's OpenAPI document, and CI fails if the committed client has drifted from it.
 
----
+### Verified by hand against a live database
+
+Integration tests are the main gap (see [improvements](#what-i-would-improve-with-more-time)).
+These behaviours were confirmed manually against PostgreSQL with 44,041 seeded readings:
+
+| Behaviour | Result |
+|---|---|
+| Migrations apply to an empty database | 15 tables created |
+| Consumption across a register reset | Summed across the discontinuity, flagged, never negative |
+| Consumption across a 30-hour reporting gap | Correct — derived from anchors, not from counting readings |
+| Billing run, previous month | 5 invoices, 1 meter skipped with a stated reason |
+| **Re-running the same period** | 0 new invoices, all reported `AlreadyBilled` |
+| Slab breakdown on an invoice | All four bands, telescopic, totals reconcile |
+| Customer listing invoices | Sees only their own |
+| Customer passing `?customerId=` for another account | Ignored — scoping is applied before caller filters |
+| Customer reading another customer's invoice | `403` |
+| Customer calling an admin endpoint | `403` |
+| Duplicate reading posted twice | `200 duplicate_ignored` |
+| Customer JWT on the ingestion endpoint | `401` |
+| Payment retried with the same idempotency key | One payment row, not two |
+| Tariff with a gap between bands | `422` with the specific bands named |
 
 ## Infrastructure sizing
 
 Full recommendation with the supporting arithmetic in
-[`docs/infrastructure-sizing.md`](docs/infrastructure-sizing.md). _(pending)_
+[`docs/infrastructure-sizing.md`](docs/infrastructure-sizing.md).
 
----
+The short version: 300 meters reporting every 15 minutes is **28,800 rows/day**,
+**~1.6 GB/year**, at an average of **0.33 writes per second** — measured from the
+seeded database, not estimated. That is three orders of magnitude below what a
+4-core / 16 GB box with an SSD handles comfortably, which is *why* there is no
+queue, no sharding and no Kubernetes. The document gives a bill of materials for
+each of the three scales, and states the row counts at which each of those
+decisions should be revisited.
 
 ## Backup and disaster recovery
 
-Method, schedule, RPO/RTO and a tested restore in
-[`docs/backup-and-recovery.md`](docs/backup-and-recovery.md). _(pending)_
+Method, schedule, RPO/RTO and recovery procedures in
+[`docs/backup-and-recovery.md`](docs/backup-and-recovery.md).
 
-A sanitized sample backup — schema plus synthetic data, no credentials and no real
-customer data — is committed at [`backups/`](backups/), and
-[`scripts/verify-restore.sh`](scripts/verify-restore.sh) restores it into a clean
-container and asserts the data came back intact.
+**The backup has been executed.** [`backups/`](backups/) contains a real
+`pg_dump` custom-format backup taken from a running instance *after exercising the
+application* — three months of readings ingested, a billing run executed, invoices
+issued, a payment recorded — together with its SHA-256, a manifest recording tool
+versions and per-table row counts, and a log of an actual restore drill.
 
----
+```bash
+scripts/backup.sh                  # take a backup (+ checksum + manifest)
+scripts/verify-restore.sh          # restore into a throwaway target and check it
+scripts/verify-restore.sh --local  # same, without Docker
+```
+
+The verifier does not just count rows: it recomputes every invoice total from its
+own line items and fails if they disagree. That catches a restore that completed but
+lost rows from a child table — which a row count on the parent would report as
+healthy. A recorded run is at [`backups/restore-drill.log`](backups/restore-drill.log),
+and the check runs in CI.
 
 ## Deployment
 
 Platform, services, containerisation and CI/CD in
-[`docs/deployment.md`](docs/deployment.md). _(pending)_
+[`docs/deployment.md`](docs/deployment.md), with
+[`scripts/deploy.sh`](scripts/deploy.sh) implementing it: pre-deployment backup,
+recreate, health check, automatic rollback on failure.
 
----
+Summary: **on-premise for the billing-critical path** (meters are on the LAN;
+ingestion and invoicing must survive a WAN outage), **AWS for what the cloud is
+strictly better at** (offsite backup to S3 + Glacier, ECR, GitHub Actions CI).
+Docker Compose, not Kubernetes — with the conditions under which that would change
+stated rather than implied.
 
 ## Project plan
 
-A waterfall plan for delivering this system with three developers, including phase
-gates, role allocation and a risk register, is in
-[`docs/sprint-plan.md`](docs/sprint-plan.md). _(pending)_
-
----
+A 12-week waterfall plan for three developers is in
+[`docs/sprint-plan.md`](docs/sprint-plan.md): six phases with entry and exit criteria,
+a named gate reviewer at each boundary, a week-by-week schedule showing the critical
+path and slack, an eight-item risk register, and an honest section on where waterfall
+fits this project and where it is risky.
 
 ## What I would improve with more time
 
-_(pending — written last, honestly)_
+Ordered by what I would actually do next.
 
----
+1. **Integration tests against real PostgreSQL.** The domain calculations are well
+   covered by 32 unit tests, but the guarantees that matter most — idempotent
+   ingestion, idempotent billing, the authorization boundary — live in unique indexes
+   and endpoint filters. I verified them by hand against a live database (the
+   evidence is in this README); they should be Testcontainers tests that run on every
+   push. This is the single biggest gap.
+
+2. **Webhook egress.** The `billing_run` and reading-anomaly events are the obvious
+   payloads. Doing it properly means a delivery table with retry and exponential
+   backoff, HMAC-signed payloads, and a dead-letter path — which is why it did not
+   fit. A naive fire-and-forget POST would have been worse than not building it.
+
+3. **Water tanks with level sensors.** A second device class with its own ingestion
+   path and its own anomaly rules (a *falling* level is normal, unlike a falling
+   meter TOTAL). Clean to add; simply not required by the core billing flow.
+
+4. **Automated supply cut-off.** The valve state machine and its audit trail exist,
+   but nothing yet *decides* to close a valve. That decision needs a policy engine
+   with grace periods, notification thresholds and regulatory constraints — cutting
+   off a household's water on a timer, with no human in the loop, would be
+   irresponsible to ship.
+
+5. **CSV bulk ingestion.** Listed as "multiple ingestion mechanisms"; REST single and
+   batch are implemented, CSV upload is not.
+
+6. **httpOnly cookie auth instead of `sessionStorage`.** The current token is
+   readable by any script on the origin. The fix is a cookie plus CSRF protection —
+   noted as a limitation rather than quietly left.
+
+7. **Meter mTLS.** Per-meter API keys are a reasonable exercise answer; client
+   certificates issued by the utility's own CA are the production answer. It needs a
+   certificate lifecycle an installer can operate, which is a larger piece of work
+   than this assignment.
+
+8. **Invoice PDFs and email delivery.** Customers expect a document, not a JSON
+   response.
+
+9. **Partitioning `meter_readings` by month**, at the ~50 M row threshold in
+   [ADR-0008](docs/adr/0008-postgresql-single-node.md). Not needed yet, and doing it
+   early would be exactly the over-engineering the sizing document argues against.
+
+### What I would do differently
+
+The `MeterResponse` projection was originally a plain method called inside a LINQ
+`Select`. It compiled, ran, and returned every navigation property as `null` —
+because EF client-evaluated it. I caught it by looking at real seeded output rather
+than from a test, which is itself the argument for point 1 above.
 
 ## Repository layout
 
