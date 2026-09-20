@@ -603,3 +603,119 @@ a {
     padding: 16px;
   }
 }
+
+/* ---------- Detail grids, bars and versions ---------- */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space);
+  margin: 0 0 var(--space);
+}
+
+.detail-grid dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.detail-grid dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A plain CSS bar chart. A charting library would be several hundred kilobytes to
+   draw six horizontal bars. */
+.bars {
+  list-style: none;
+  margin: 0 0 var(--space);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bars__row {
+  display: grid;
+  grid-template-columns: 90px 1fr 110px auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.bars__label {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.bars__track {
+  background: var(--surface-alt);
+  border-radius: 999px;
+  block-size: 18px;
+  overflow: hidden;
+}
+
+.bars__fill {
+  display: block;
+  block-size: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  min-inline-size: 2px;
+}
+
+.bars__value {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.bars__flags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.version {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space);
+  margin-top: var(--space);
+}
+
+.version__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.table tfoot th,
+.table tfoot td {
+  border-top: 2px solid var(--border);
+  border-bottom: none;
+  font-weight: 600;
+}
+
+.table tfoot th {
+  text-align: end;
+  background: none;
+  text-transform: none;
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .bars__row {
+    grid-template-columns: 70px 1fr 90px;
+  }
+  .bars__flags {
+    grid-column: 1 / -1;
+  }
+}

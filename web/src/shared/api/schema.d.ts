@@ -24,6 +24,230 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List users */
+        get: operations["ListUsers"];
+        put?: never;
+        /**
+         * Create a user
+         * @description Admin only. Creates an Admin or Customer account. Passwords are hashed with PBKDF2-HMAC-SHA512 and never stored or returned in clear.
+         */
+        post: operations["CreateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a user */
+        get: operations["GetUser"];
+        /** Update a user's profile */
+        put: operations["UpdateUser"];
+        post?: never;
+        /**
+         * Soft-delete a user
+         * @description The row is retained with a deletion timestamp so existing invoices stay attributable. Meters held by the user are unassigned rather than deleted, and the email address becomes reusable.
+         */
+        delete: operations["DeleteUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List meters
+         * @description Admins see every meter. A customer sees only meters assigned to their own account; the filter is applied server-side, not by the caller.
+         */
+        get: operations["ListMeters"];
+        put?: never;
+        /**
+         * Create a water meter
+         * @description Admin only. Issues the meter's first ingestion API key in the same response — the only time the plaintext key is ever shown.
+         */
+        post: operations["CreateMeter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meters/{meterId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a meter */
+        get: operations["GetMeter"];
+        /** Update a meter */
+        put: operations["UpdateMeter"];
+        post?: never;
+        /** Soft-delete a meter */
+        delete: operations["DeleteMeter"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meters/{meterId}/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Assign or unassign a meter
+         * @description Sets the customer billed for this meter. Passing null unassigns it; already-issued invoices keep the customer they were issued to.
+         */
+        put: operations["AssignMeter"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meters/{meterId}/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a meter's keys
+         * @description Returns prefixes and lifecycle timestamps only. Plaintext keys are not recoverable by design.
+         */
+        get: operations["ListMeterApiKeys"];
+        put?: never;
+        /** Issue an ingestion key */
+        post: operations["IssueMeterApiKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meters/{meterId}/api-keys/{keyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke an ingestion key */
+        delete: operations["RevokeMeterApiKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meters/{meterId}/supply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Open or close the supply valve
+         * @description Records the DESIRED valve position. The on-site gateway reconciles the physical relay and reports back, so a valve that fails to actuate stays visible instead of being assumed closed.
+         */
+        put: operations["SetMeterSupplyState"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meters/{meterId}/readings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List readings for a meter
+         * @description Admins may read any meter. A customer may read only meters assigned to their own account; requesting another customer's meter returns 403, not 404, because the meter's existence is not itself a secret.
+         */
+        get: operations["GetMeterReadings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meters/{meterId}/consumption": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * View consumption for a period
+         * @description Derives consumption from the stored reading series rather than a running counter: TOTAL at the last reading on or before the period end, minus TOTAL at the last reading on or before the period start, walked pairwise so a meter reset is summed across. Defaults to the current calendar month. Flags explain any caveat on the figure.
+         */
+        get: operations["GetMeterConsumption"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meters/{meterId}/consumption/monthly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consumption month by month
+         * @description A rolling series for charting. Each month is computed independently with the same formula, so the months sum exactly to the total across the span.
+         */
+        get: operations["GetMeterMonthlyConsumption"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ingest/readings": {
         parameters: {
             query?: never;
@@ -64,7 +288,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/meters/{meterId}/readings": {
+    "/api/v1/pricing-plans": {
         parameters: {
             query?: never;
             header?: never;
@@ -72,10 +296,170 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List readings for a meter
-         * @description Admins may read any meter. A customer may read only meters assigned to their own account; requesting another customer's meter returns 403, not 404, because the meter's existence is not itself a secret.
+         * List pricing plans
+         * @description Every plan with its full version history. Versions are immutable, so this is the complete record of what any meter has ever been billed at.
          */
-        get: operations["GetMeterReadings"];
+        get: operations["ListPricingPlans"];
+        put?: never;
+        /**
+         * Create a pricing plan
+         * @description Creates the plan and publishes its first version. Supports fixed per-unit pricing and slab pricing; slab bands are validated for contiguity by the same domain rules the pricing engine uses.
+         */
+        post: operations["CreatePricingPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pricing-plans/{planId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a pricing plan */
+        get: operations["GetPricingPlan"];
+        put?: never;
+        post?: never;
+        /** Soft-delete a pricing plan */
+        delete: operations["DeletePricingPlan"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pricing-plans/{planId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish a new tariff version
+         * @description Closes the current version and opens a successor. Nothing is edited in place, so an invoice issued under the old rates still reprices identically.
+         */
+        post: operations["PublishPricingPlanVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pricing-plans/{planId}/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview a charge
+         * @description Prices a hypothetical consumption against the plan's current version, returning the full band-by-band breakdown. Lets an admin check a tariff before any customer is billed by it.
+         */
+        post: operations["QuotePricingPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List invoices
+         * @description Admins see every invoice. A customer sees only their own — the filter is applied server-side and cannot be widened by a query parameter.
+         */
+        get: operations["ListInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invoices/{invoiceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an invoice with its full breakdown
+         * @description Returns every line item as stored at generation: band, units, rate and amount. Nothing is recomputed, so the invoice reads the same today as on the day it was issued.
+         */
+        get: operations["GetInvoice"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invoices/{invoiceId}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pay an invoice
+         * @description Records a payment against a mocked provider, with every attempt logged. Idempotent on the caller-supplied key, so a retried checkout cannot charge twice.
+         */
+        post: operations["RecordInvoicePayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List billing runs */
+        get: operations["ListBillingRuns"];
+        put?: never;
+        /**
+         * Generate invoices for a period
+         * @description Defaults to the previous calendar month. Idempotent: a unique index on (meter_id, period_start) means re-running cannot double-bill, and already-billed meters are reported rather than treated as errors. Meters with no readings are billed the standing charge and flagged, never silently skipped. Pass dryRun to compute and report everything without persisting.
+         */
+        post: operations["GenerateInvoices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing-runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a billing run with per-meter outcomes */
+        get: operations["GetBillingRun"];
         put?: never;
         post?: never;
         delete?: never;
@@ -88,6 +472,135 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ApiKeySummaryResponse: {
+            /** Format: uuid */
+            keyId: string;
+            prefix: string;
+            label: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            /** Format: date-time */
+            revokedAtUtc: null | string;
+            /** Format: date-time */
+            lastUsedAtUtc: null | string;
+            isUsable: boolean;
+        };
+        AssignMeterRequest: {
+            /** Format: uuid */
+            customerId?: null | string;
+        };
+        BillingRunItemResponse: {
+            /** Format: uuid */
+            meterId: string;
+            meterSerial: string;
+            outcome: string;
+            /** Format: uuid */
+            invoiceId: null | string;
+            invoiceNumber: null | string;
+            /** Format: double */
+            consumptionM3: null | number;
+            /** Format: double */
+            totalAmount: null | number;
+            consumptionFlags: string[];
+            message: null | string;
+        };
+        /**
+         * @description The answer to "did billing work this month?" — per meter, with a reason for every
+         *     meter that was not invoiced (ADR-0007).
+         */
+        BillingRunResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            periodStartUtc: string;
+            /** Format: date-time */
+            periodEndUtc: string;
+            status: string;
+            isDryRun: boolean;
+            /** Format: int32 */
+            metersConsidered: number;
+            /** Format: int32 */
+            invoicesGenerated: number;
+            /** Format: int32 */
+            skipped: number;
+            /** Format: int32 */
+            failed: number;
+            /** Format: double */
+            totalBilledAmount: number;
+            /** Format: date-time */
+            startedAtUtc: string;
+            /** Format: date-time */
+            completedAtUtc: null | string;
+            items: components["schemas"]["BillingRunItemResponse"][];
+        };
+        ConsumptionResponse: {
+            /** Format: uuid */
+            meterId: string;
+            serialNumber: string;
+            /** Format: date-time */
+            periodStartUtc: string;
+            /** Format: date-time */
+            periodEndUtc: string;
+            /** Format: double */
+            consumptionM3: number;
+            /** Format: double */
+            openingTotalM3: null | number;
+            /** Format: double */
+            closingTotalM3: null | number;
+            /** Format: date-time */
+            openingReadingAtUtc: null | string;
+            /** Format: date-time */
+            closingReadingAtUtc: null | string;
+            /** Format: int32 */
+            readingCount: number;
+            /** Format: int32 */
+            resetCount: number;
+            flags: string[];
+            isBillableWithConfidence: boolean;
+        };
+        CreateMeterRequest: {
+            serialNumber: string;
+            model?: null | string;
+            locationDescription?: null | string;
+            /** Format: date-time */
+            installedAtUtc?: null | string;
+            /** Format: uuid */
+            customerId?: null | string;
+            /** Format: uuid */
+            pricingPlanId?: null | string;
+        };
+        CreatePricingPlanRequest: {
+            name: string;
+            initialVersion: components["schemas"]["PublishVersionRequest"];
+            description?: null | string;
+            currency?: null | string;
+            /** @default false */
+            isDefault: boolean;
+        };
+        CreateUserRequest: {
+            email: string;
+            password: string;
+            fullName: string;
+            role: string;
+            phoneNumber?: null | string;
+            billingAddress?: null | string;
+        };
+        /**
+         * @description Defaults to the previous calendar month, which is what the assignment asks for.
+         *     An explicit period is accepted for re-runs and back-fills.
+         */
+        GenerateInvoicesRequest: {
+            /** @default false */
+            dryRun: boolean;
+            /** @default true */
+            issueImmediately: boolean;
+            /** Format: date-time */
+            periodStartUtc?: null | string;
+            /** Format: date-time */
+            periodEndUtc?: null | string;
+        };
         HttpValidationProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -98,6 +611,107 @@ export interface components {
             errors?: {
                 [key: string]: string[];
             };
+        };
+        InvoiceLineResponse: {
+            /** Format: int32 */
+            sortOrder: number;
+            kind: string;
+            description: string;
+            /** Format: double */
+            bandFromM3: null | number;
+            /** Format: double */
+            bandToM3: null | number;
+            /** Format: double */
+            unitsM3: number;
+            /** Format: double */
+            ratePerM3: number;
+            /** Format: double */
+            amount: number;
+        };
+        InvoicePageResponse: {
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            totalCount: number;
+            invoices: components["schemas"]["InvoiceResponse"][];
+        };
+        InvoiceResponse: {
+            /** Format: uuid */
+            id: string;
+            invoiceNumber: string;
+            /** Format: uuid */
+            meterId: string;
+            meterSerial: string;
+            /** Format: uuid */
+            customerId: null | string;
+            customerName: null | string;
+            /** Format: date-time */
+            periodStartUtc: string;
+            /** Format: date-time */
+            periodEndUtc: string;
+            /** Format: double */
+            openingTotalM3: null | number;
+            /** Format: double */
+            closingTotalM3: null | number;
+            /** Format: date-time */
+            openingReadingAtUtc: null | string;
+            /** Format: date-time */
+            closingReadingAtUtc: null | string;
+            /** Format: double */
+            consumptionM3: number;
+            /** Format: int32 */
+            readingCount: number;
+            consumptionFlags: string[];
+            pricingPlanName: string;
+            /** Format: int32 */
+            pricingPlanVersionNumber: number;
+            /** Format: double */
+            fixedCharge: number;
+            /** Format: double */
+            usageCharge: number;
+            /** Format: double */
+            taxRatePercent: number;
+            /** Format: double */
+            taxAmount: number;
+            /** Format: double */
+            totalAmount: number;
+            /** Format: double */
+            amountPaid: number;
+            /** Format: double */
+            amountDue: number;
+            currency: string;
+            status: string;
+            /** Format: date-time */
+            issuedAtUtc: null | string;
+            /** Format: date-time */
+            dueAtUtc: null | string;
+            /** Format: date-time */
+            paidAtUtc: null | string;
+            lines: components["schemas"]["InvoiceLineResponse"][];
+        };
+        IssueApiKeyRequest: {
+            label?: null | string;
+            /** Format: int32 */
+            expiresInDays?: null | number;
+        };
+        /**
+         * @description The plaintext key appears here and nowhere else, ever. It is not stored, cannot
+         *     be recovered, and is not written to the audit log — only its prefix is.
+         */
+        IssuedApiKeyResponse: {
+            /** Format: uuid */
+            keyId: string;
+            /** Format: uuid */
+            meterId: string;
+            meterSerial: string;
+            apiKey: string;
+            prefix: string;
+            headerName: string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            warning: string;
         };
         LoginRequest: {
             email: string;
@@ -114,6 +728,142 @@ export interface components {
             fullName: string;
             role: string;
         };
+        MeterPageResponse: {
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            totalCount: number;
+            meters: components["schemas"]["MeterResponse"][];
+        };
+        MeterResponse: {
+            /** Format: uuid */
+            id: string;
+            serialNumber: string;
+            model: null | string;
+            locationDescription: null | string;
+            /** Format: date-time */
+            installedAtUtc: string;
+            status: string;
+            /** Format: uuid */
+            customerId: null | string;
+            customerName: null | string;
+            /** Format: uuid */
+            pricingPlanId: null | string;
+            pricingPlanName: null | string;
+            desiredSupplyState: string;
+            reportedSupplyState: null | string;
+            supplyStateReason: null | string;
+            /** Format: date-time */
+            lastReadingAtUtc: null | string;
+            /** Format: double */
+            latestTotalM3: null | number;
+        };
+        MonthlyConsumptionResponse: {
+            /** Format: uuid */
+            meterId: string;
+            serialNumber: string;
+            /** Format: date-time */
+            fromUtc: string;
+            /** Format: date-time */
+            toUtc: string;
+            /** Format: double */
+            totalConsumptionM3: number;
+            months: components["schemas"]["ConsumptionResponse"][];
+        };
+        PaymentResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            invoiceId: string;
+            /** Format: double */
+            amount: number;
+            currency: string;
+            status: string;
+            provider: string;
+            providerReference: null | string;
+            /** Format: date-time */
+            initiatedAtUtc: string;
+            /** Format: date-time */
+            completedAtUtc: null | string;
+            failureReason: null | string;
+            /** Format: double */
+            invoiceAmountDue: number;
+            invoiceStatus: string;
+        };
+        PriceLineResponse: {
+            description: string;
+            /** Format: double */
+            fromM3: null | number;
+            /** Format: double */
+            toM3: null | number;
+            /** Format: double */
+            unitsM3: number;
+            /** Format: double */
+            ratePerM3: number;
+            /** Format: double */
+            amount: number;
+        };
+        /** @description Lets an admin see what a tariff would charge before publishing it. */
+        PriceQuoteRequest: {
+            /** Format: double */
+            consumptionM3: number;
+        };
+        PriceQuoteResponse: {
+            /** Format: uuid */
+            planId: string;
+            planName: string;
+            /** Format: int32 */
+            planVersionNumber: number;
+            currency: string;
+            /** Format: double */
+            consumptionM3: number;
+            lines: components["schemas"]["PriceLineResponse"][];
+            /** Format: double */
+            fixedCharge: number;
+            /** Format: double */
+            usageCharge: number;
+            /** Format: double */
+            subtotal: number;
+            /** Format: double */
+            taxRatePercent: number;
+            /** Format: double */
+            taxAmount: number;
+            /** Format: double */
+            total: number;
+        };
+        PricingPlanResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: null | string;
+            currency: string;
+            isDefault: boolean;
+            /** Format: int32 */
+            meterCount: number;
+            versions: components["schemas"]["PricingPlanVersionResponse"][];
+        };
+        PricingPlanVersionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            versionNumber: number;
+            mode: string;
+            slabMode: string;
+            /** Format: double */
+            fixedCharge: number;
+            /** Format: double */
+            ratePerM3: number;
+            /** Format: double */
+            taxRatePercent: number;
+            /** Format: date-time */
+            effectiveFromUtc: string;
+            /** Format: date-time */
+            effectiveToUtc: null | string;
+            isCurrent: boolean;
+            slabs: components["schemas"]["SlabResponse"][];
+        };
         ProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -121,6 +871,32 @@ export interface components {
             status?: null | number;
             detail?: null | string;
             instance?: null | string;
+        };
+        /**
+         * @description Publishing a version never edits the current one — it closes it and opens a
+         *     successor, so an invoice issued last month still prices exactly as it did.
+         */
+        PublishVersionRequest: {
+            mode: string;
+            /**
+             * Format: double
+             * @default 0
+             */
+            fixedCharge: number;
+            /**
+             * Format: double
+             * @default 0
+             */
+            ratePerM3: number;
+            /**
+             * Format: double
+             * @default 0
+             */
+            taxRatePercent: number;
+            slabMode?: null | string;
+            /** Format: date-time */
+            effectiveFromUtc?: null | string;
+            slabs?: null | components["schemas"]["SlabRequest"][];
         };
         /** @description Batch form, for devices that store and forward after a link outage. */
         ReadingBatchRequest: {
@@ -198,6 +974,75 @@ export interface components {
             anomalies: string;
             anomalyNotes: null | string;
         };
+        RecordPaymentRequest: {
+            /** Format: double */
+            amount: number;
+            /** @default mock */
+            provider: string;
+            providerReference?: null | string;
+            idempotencyKey?: null | string;
+        };
+        SlabRequest: {
+            /** Format: double */
+            fromM3: number;
+            /** Format: double */
+            ratePerM3: number;
+            /** Format: double */
+            toM3?: null | number;
+        };
+        SlabResponse: {
+            /** Format: int32 */
+            sortOrder: number;
+            /** Format: double */
+            fromM3: number;
+            /** Format: double */
+            toM3: null | number;
+            /** Format: double */
+            ratePerM3: number;
+        };
+        SupplyStateRequest: {
+            desiredState: string;
+            reason: string;
+        };
+        UpdateMeterRequest: {
+            status: string;
+            model?: null | string;
+            locationDescription?: null | string;
+            /** Format: uuid */
+            pricingPlanId?: null | string;
+        };
+        UpdateUserRequest: {
+            fullName: string;
+            /** @default true */
+            isActive: boolean;
+            phoneNumber?: null | string;
+            billingAddress?: null | string;
+        };
+        UserPageResponse: {
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            totalCount: number;
+            users: components["schemas"]["UserResponse"][];
+        };
+        UserResponse: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            fullName: string;
+            role: string;
+            phoneNumber: null | string;
+            billingAddress: null | string;
+            isActive: boolean;
+            /** Format: int32 */
+            meterCount: number;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            lastLoginAtUtc: null | string;
+        };
     };
     responses: never;
     parameters: never;
@@ -205,16 +1050,48 @@ export interface components {
     headers: never;
     pathItems: never;
 }
+export type SchemaApiKeySummaryResponse = components['schemas']['ApiKeySummaryResponse'];
+export type SchemaAssignMeterRequest = components['schemas']['AssignMeterRequest'];
+export type SchemaBillingRunItemResponse = components['schemas']['BillingRunItemResponse'];
+export type SchemaBillingRunResponse = components['schemas']['BillingRunResponse'];
+export type SchemaConsumptionResponse = components['schemas']['ConsumptionResponse'];
+export type SchemaCreateMeterRequest = components['schemas']['CreateMeterRequest'];
+export type SchemaCreatePricingPlanRequest = components['schemas']['CreatePricingPlanRequest'];
+export type SchemaCreateUserRequest = components['schemas']['CreateUserRequest'];
+export type SchemaGenerateInvoicesRequest = components['schemas']['GenerateInvoicesRequest'];
 export type SchemaHttpValidationProblemDetails = components['schemas']['HttpValidationProblemDetails'];
+export type SchemaInvoiceLineResponse = components['schemas']['InvoiceLineResponse'];
+export type SchemaInvoicePageResponse = components['schemas']['InvoicePageResponse'];
+export type SchemaInvoiceResponse = components['schemas']['InvoiceResponse'];
+export type SchemaIssueApiKeyRequest = components['schemas']['IssueApiKeyRequest'];
+export type SchemaIssuedApiKeyResponse = components['schemas']['IssuedApiKeyResponse'];
 export type SchemaLoginRequest = components['schemas']['LoginRequest'];
 export type SchemaLoginResponse = components['schemas']['LoginResponse'];
+export type SchemaMeterPageResponse = components['schemas']['MeterPageResponse'];
+export type SchemaMeterResponse = components['schemas']['MeterResponse'];
+export type SchemaMonthlyConsumptionResponse = components['schemas']['MonthlyConsumptionResponse'];
+export type SchemaPaymentResponse = components['schemas']['PaymentResponse'];
+export type SchemaPriceLineResponse = components['schemas']['PriceLineResponse'];
+export type SchemaPriceQuoteRequest = components['schemas']['PriceQuoteRequest'];
+export type SchemaPriceQuoteResponse = components['schemas']['PriceQuoteResponse'];
+export type SchemaPricingPlanResponse = components['schemas']['PricingPlanResponse'];
+export type SchemaPricingPlanVersionResponse = components['schemas']['PricingPlanVersionResponse'];
 export type SchemaProblemDetails = components['schemas']['ProblemDetails'];
+export type SchemaPublishVersionRequest = components['schemas']['PublishVersionRequest'];
 export type SchemaReadingBatchRequest = components['schemas']['ReadingBatchRequest'];
 export type SchemaReadingBatchResponse = components['schemas']['ReadingBatchResponse'];
 export type SchemaReadingIngestionResult = components['schemas']['ReadingIngestionResult'];
 export type SchemaReadingPageResponse = components['schemas']['ReadingPageResponse'];
 export type SchemaReadingRequest = components['schemas']['ReadingRequest'];
 export type SchemaReadingResponse = components['schemas']['ReadingResponse'];
+export type SchemaRecordPaymentRequest = components['schemas']['RecordPaymentRequest'];
+export type SchemaSlabRequest = components['schemas']['SlabRequest'];
+export type SchemaSlabResponse = components['schemas']['SlabResponse'];
+export type SchemaSupplyStateRequest = components['schemas']['SupplyStateRequest'];
+export type SchemaUpdateMeterRequest = components['schemas']['UpdateMeterRequest'];
+export type SchemaUpdateUserRequest = components['schemas']['UpdateUserRequest'];
+export type SchemaUserPageResponse = components['schemas']['UserPageResponse'];
+export type SchemaUserResponse = components['schemas']['UserResponse'];
 export type $defs = Record<string, never>;
 export interface operations {
     Login: {
@@ -250,6 +1127,609 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListUsers: {
+        parameters: {
+            query?: {
+                role?: string;
+                search?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPageResponse"];
+                };
+            };
+        };
+    };
+    CreateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListMeters: {
+        parameters: {
+            query?: {
+                customerId?: string;
+                status?: string;
+                search?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeterPageResponse"];
+                };
+            };
+        };
+    };
+    CreateMeter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMeterRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeterResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMeter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeterResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateMeter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMeterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeterResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteMeter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AssignMeter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignMeterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeterResponse"];
+                };
+            };
+        };
+    };
+    ListMeterApiKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeySummaryResponse"][];
+                };
+            };
+        };
+    };
+    IssueMeterApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueApiKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedApiKeyResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    RevokeMeterApiKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meterId: string;
+                keyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SetMeterSupplyState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupplyStateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeterResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMeterReadings: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                pageSize?: number;
+                page?: number;
+            };
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadingPageResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMeterConsumption: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsumptionResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMeterMonthlyConsumption: {
+        parameters: {
+            query?: {
+                months?: number;
+            };
+            header?: never;
+            path: {
+                meterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyConsumptionResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -361,17 +1841,83 @@ export interface operations {
             };
         };
     };
-    GetMeterReadings: {
+    ListPricingPlans: {
         parameters: {
-            query?: {
-                from?: string;
-                to?: string;
-                pageSize?: number;
-                page?: number;
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingPlanResponse"][];
+                };
             };
+        };
+    };
+    CreatePricingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePricingPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingPlanResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPricingPlan: {
+        parameters: {
+            query?: never;
             header?: never;
             path: {
-                meterId: string;
+                planId: string;
             };
             cookie?: never;
         };
@@ -383,7 +1929,181 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReadingPageResponse"];
+                    "application/json": components["schemas"]["PricingPlanResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeletePricingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PublishPricingPlanVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingPlanResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    QuotePricingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriceQuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceQuoteResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListInvoices: {
+        parameters: {
+            query?: {
+                meterId?: string;
+                customerId?: string;
+                status?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicePageResponse"];
+                };
+            };
+        };
+    };
+    GetInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceResponse"];
                 };
             };
             /** @description Forbidden */
@@ -393,6 +2113,154 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RecordInvoicePayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListBillingRuns: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingRunResponse"][];
+                };
+            };
+        };
+    };
+    GenerateInvoices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateInvoicesRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingRunResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetBillingRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingRunResponse"];
                 };
             };
             /** @description Not Found */
