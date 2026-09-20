@@ -37,9 +37,12 @@ logs/
 # Node
 node_modules/
 
-# Backups: the repository ships ONE sanitized, synthetic-data dump
-# (backups/sample-*.dump). Everything else produced locally stays out.
+# Backups: the repository ships ONE sanitized, synthetic-data dump, its checksum,
+# its manifest and a recorded restore drill. Everything else produced locally —
+# including real backups taken on a site — stays out.
 backups/*
 !backups/README.md
 !backups/sample-*.dump
 !backups/sample-*.dump.sha256
+!backups/sample-*.manifest.md
+!backups/restore-drill.log

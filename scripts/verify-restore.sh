@@ -26,12 +26,23 @@ readonly VERIFY_PASSWORD="verify-throwaway"
 readonly PG_IMAGE="${PG_IMAGE:-postgres:17-alpine}"
 
 DUMP_FILE=""
+MODE="docker"
+LOCAL_HOST="${PGHOST:-localhost}"
+LOCAL_PORT="${PGPORT:-5432}"
+LOCAL_SUPERUSER="${PGUSER:-$(whoami)}"
 FAILURES=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --file) DUMP_FILE="$2"; shift 2 ;;
-    -h|--help) sed -n '2,15p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    # Restores into a throwaway database on a PostgreSQL already running on this
+    # host, for environments without Docker. The database is created and dropped by
+    # this script and never touches an existing one.
+    --local) MODE="local"; shift ;;
+    --host) LOCAL_HOST="$2"; shift 2 ;;
+    --port) LOCAL_PORT="$2"; shift 2 ;;
+    --superuser) LOCAL_SUPERUSER="$2"; shift 2 ;;
+    -h|--help) sed -n '2,17p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -46,14 +57,27 @@ if [[ -z "${DUMP_FILE}" || ! -f "${DUMP_FILE}" ]]; then
 fi
 
 cleanup() {
-  docker rm --force "${VERIFY_CONTAINER}" >/dev/null 2>&1 || true
+  if [[ "${MODE}" == "docker" ]]; then
+    docker rm --force "${VERIFY_CONTAINER}" >/dev/null 2>&1 || true
+  else
+    dropdb --host="${LOCAL_HOST}" --port="${LOCAL_PORT}" --username="${LOCAL_SUPERUSER}" \
+           --if-exists "${LOCAL_VERIFY_DB}" >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 
+readonly LOCAL_VERIFY_DB="waterbilling_restore_verify_$$"
+
 psql_scalar() {
-  docker exec "${VERIFY_CONTAINER}" \
-    psql --username="${VERIFY_USER}" --dbname="${VERIFY_DB}" \
+  if [[ "${MODE}" == "docker" ]]; then
+    docker exec "${VERIFY_CONTAINER}" \
+      psql --username="${VERIFY_USER}" --dbname="${VERIFY_DB}" \
+           --tuples-only --no-align --quiet --command "$1" 2>/dev/null | tr -d '[:space:]'
+  else
+    psql --host="${LOCAL_HOST}" --port="${LOCAL_PORT}" --username="${LOCAL_SUPERUSER}" \
+         --dbname="${LOCAL_VERIFY_DB}" \
          --tuples-only --no-align --quiet --command "$1" 2>/dev/null | tr -d '[:space:]'
+  fi
 }
 
 check() {
@@ -80,8 +104,11 @@ echo "=============================================================="
 echo " Backup restore verification"
 echo "=============================================================="
 echo " Dump:      ${DUMP_FILE}"
-echo " Image:     ${PG_IMAGE}"
-echo " Container: ${VERIFY_CONTAINER} (removed on exit)"
+if [[ "${MODE}" == "docker" ]]; then
+  echo " Target:    ${PG_IMAGE} container ${VERIFY_CONTAINER} (removed on exit)"
+else
+  echo " Target:    ${LOCAL_HOST}:${LOCAL_PORT} database ${LOCAL_VERIFY_DB} (dropped on exit)"
+fi
 echo
 
 # --- 1. Integrity -----------------------------------------------------------
@@ -100,34 +127,49 @@ fi
 echo
 
 # --- 2. Clean target --------------------------------------------------------
-echo "Starting a clean PostgreSQL container..."
-docker run --detach --rm \
-  --name "${VERIFY_CONTAINER}" \
-  --env POSTGRES_DB="${VERIFY_DB}" \
-  --env POSTGRES_USER="${VERIFY_USER}" \
-  --env POSTGRES_PASSWORD="${VERIFY_PASSWORD}" \
-  "${PG_IMAGE}" >/dev/null
+if [[ "${MODE}" == "docker" ]]; then
+  echo "Starting a clean PostgreSQL container..."
+  docker run --detach --rm \
+    --name "${VERIFY_CONTAINER}" \
+    --env POSTGRES_DB="${VERIFY_DB}" \
+    --env POSTGRES_USER="${VERIFY_USER}" \
+    --env POSTGRES_PASSWORD="${VERIFY_PASSWORD}" \
+    "${PG_IMAGE}" >/dev/null
 
-printf "Waiting for it to accept connections"
-for _ in $(seq 1 60); do
-  if docker exec "${VERIFY_CONTAINER}" pg_isready --username="${VERIFY_USER}" --dbname="${VERIFY_DB}" >/dev/null 2>&1; then
-    break
-  fi
-  printf '.'
-  sleep 1
-done
-echo " ready."
+  printf "Waiting for it to accept connections"
+  for _ in $(seq 1 60); do
+    if docker exec "${VERIFY_CONTAINER}" pg_isready --username="${VERIFY_USER}" --dbname="${VERIFY_DB}" >/dev/null 2>&1; then
+      break
+    fi
+    printf '.'
+    sleep 1
+  done
+  echo " ready."
+else
+  echo "Creating a throwaway database '${LOCAL_VERIFY_DB}'..."
+  createdb --host="${LOCAL_HOST}" --port="${LOCAL_PORT}" --username="${LOCAL_SUPERUSER}" "${LOCAL_VERIFY_DB}"
+  echo "  created."
+fi
 echo
 
 # --- 3. Restore -------------------------------------------------------------
 echo "Restoring..."
-docker exec --interactive "${VERIFY_CONTAINER}" pg_restore \
-  --username="${VERIFY_USER}" \
-  --dbname="${VERIFY_DB}" \
-  --no-owner \
-  --no-privileges \
-  --exit-on-error \
-  < "${DUMP_FILE}"
+if [[ "${MODE}" == "docker" ]]; then
+  docker exec --interactive "${VERIFY_CONTAINER}" pg_restore \
+    --username="${VERIFY_USER}" \
+    --dbname="${VERIFY_DB}" \
+    --no-owner \
+    --no-privileges \
+    --exit-on-error \
+    < "${DUMP_FILE}"
+else
+  pg_restore --host="${LOCAL_HOST}" --port="${LOCAL_PORT}" --username="${LOCAL_SUPERUSER}" \
+    --dbname="${LOCAL_VERIFY_DB}" \
+    --no-owner \
+    --no-privileges \
+    --exit-on-error \
+    "${DUMP_FILE}"
+fi
 echo "  PASS  pg_restore completed without error"
 echo
 
