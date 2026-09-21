@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { api, unwrap } from '@/shared/api/client'
 
@@ -44,6 +44,11 @@ export function useMeters(params: MeterListParams) {
           },
         }),
       ),
+    // search is part of the query key, so without this every keystroke would swap
+    // to a key with no cached data and flash the page back to the loading state.
+    // Keeping the previous page's rows on screen during a refetch is what makes
+    // the small inline "Refreshing" spinner (rather than a full-page one) correct.
+    placeholderData: keepPreviousData,
   })
 }
 

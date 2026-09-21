@@ -4,11 +4,12 @@ import { ApiProblem, toApiProblem } from './problem'
 import type { paths } from './schema'
 
 /**
- * Relative by design — see the comment in vite.config.ts. Vite would inline an
- * absolute URL at build time, which is how a single image ends up hard-coded to one
- * environment. In development Vite proxies /api; in production nginx does.
+ * Empty, not '/api': every path in the generated `paths` type already starts with
+ * '/api/v1/...' (that's the real route the server exposes), so this is relative to
+ * the origin root. In development Vite proxies /api; in production nginx does. See
+ * the comment in vite.config.ts.
  */
-const BASE_URL = '/api'
+const BASE_URL = ''
 
 const TOKEN_STORAGE_KEY = 'waterbilling.accessToken'
 

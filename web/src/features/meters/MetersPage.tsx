@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { useAuth } from '@/features/auth/useAuth'
@@ -13,16 +13,30 @@ import { Spinner } from '@/shared/ui/Spinner'
 import { useMeters } from './queries'
 
 const PAGE_SIZE = 25
+const SEARCH_DEBOUNCE_MS = 300
+
+/** Delays reacting to a fast-changing value until it has settled for `delayMs`. */
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value)
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebounced(value), delayMs)
+    return () => clearTimeout(timeout)
+  }, [value, delayMs])
+
+  return debounced
+}
 
 export function MetersPage() {
   const { isAdmin } = useAuth()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search.trim(), SEARCH_DEBOUNCE_MS)
 
   const { data, isPending, isError, error, isFetching } = useMeters({
     page,
     pageSize: PAGE_SIZE,
-    search: search.trim() || undefined,
+    search: debouncedSearch || undefined,
   })
 
   if (isPending) {
