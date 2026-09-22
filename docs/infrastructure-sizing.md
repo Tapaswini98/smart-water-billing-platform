@@ -15,7 +15,7 @@ list prices move and every account has its own discounts.
 ## The workload, in numbers
 
 At the design cadence of **one reading per meter every 15 minutes** (96/day). Row
-size is measured from the live database, not estimated: 44,041 seeded readings
+size is measured from the live database, not estimated: 44,040 seeded readings
 produce a 1.3 MB compressed dump, so ~31 bytes/row compressed and ~150 bytes/row on
 disk with indexes.
 

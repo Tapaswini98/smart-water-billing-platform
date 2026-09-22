@@ -107,7 +107,12 @@ $40/month and can be stopped outside working hours.
 | `verify-restore` | The committed backup genuinely restores and the data is intact |
 | `docker-build` | Both images build |
 
-Release adds, on a tag:
+**The release workflow below is the target design, not a file in this repository.**
+There is no live AWS account for a take-home to deploy into, and the assignment
+asks deployment strategy to be planned and documented — unlike the backup, which it
+explicitly asks to be designed *and executed*. `ci.yml` is real and runs on every
+push; this is what a second workflow, gated on a tag and holding the OIDC role
+below, would do:
 
 1. Build and push to ECR, tagged with the commit SHA.
 2. Sync the SPA build to S3 and invalidate the CloudFront distribution.

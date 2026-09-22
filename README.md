@@ -27,6 +27,7 @@ verified — see [Backup and disaster recovery](#backup-and-disaster-recovery).
 - [Deployment](#deployment)
 - [Project plan](#project-plan)
 - [What I would improve with more time](#what-i-would-improve-with-more-time)
+- [Repository layout](#repository-layout)
 
 ---
 
@@ -102,7 +103,7 @@ so the walkthrough works immediately, without creating anything first.
 | Generate previous-month invoices | Idempotent billing runs with per-meter outcomes |
 | Fixed **or** slab pricing, admin-configurable | Both, with progressive and whole-volume slab modes |
 | Customer views current and previous invoices | List and full breakdown, scoped to their own |
-| Documentation | This file, 11 ADRs, and four deliverable documents |
+| Documentation | This file, 12 ADRs, and four deliverable documents |
 
 ### Appreciated
 
@@ -310,7 +311,7 @@ the API's OpenAPI document, and CI fails if the committed client has drifted fro
 ### Verified by hand against a live database
 
 Integration tests are the main gap (see [improvements](#what-i-would-improve-with-more-time)).
-These behaviours were confirmed manually against PostgreSQL with 44,041 seeded readings:
+These behaviours were confirmed manually against PostgreSQL with 44,040 seeded readings:
 
 | Behaviour | Result |
 |---|---|
@@ -486,7 +487,8 @@ src/
   WaterBilling.Api/             Vertical feature slices: endpoint + validator + DTOs.
 tests/
   WaterBilling.Domain.Tests/    Pure unit tests. No database, no host.
-  WaterBilling.Api.Tests/       Integration tests against real PostgreSQL.
+                                 Integration tests against real PostgreSQL do not exist
+                                 yet — see "What I would improve" below.
 web/                            React + TypeScript client. See web/README.md.
 openapi/                        Contract emitted by the API build; the web client is generated from it.
 docs/

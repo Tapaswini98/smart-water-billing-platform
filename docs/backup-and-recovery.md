@@ -18,7 +18,7 @@ scripts/backup.sh --label pre-upgrade  # tag a backup with why it was taken
 
 Custom format (`-Fc`) rather than plain SQL:
 
-- Compressed — the demo database is 44,041 readings and dumps to 1.3 MB.
+- Compressed — the demo database is 44,040 readings and dumps to 1.3 MB.
 - Selectively restorable, so a single table can be recovered without the rest.
 - Restorable in parallel by `pg_restore`.
 - Portable across PostgreSQL versions and across machines.

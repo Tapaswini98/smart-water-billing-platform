@@ -13,6 +13,5 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/WaterBilling.Domain.Tests/WaterBilling.Domain.Tests.csproj" />
-    <Project Path="tests/WaterBilling.Api.Tests/WaterBilling.Api.Tests.csproj" />
   </Folder>
 </Solution>
