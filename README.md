@@ -111,7 +111,7 @@ so the walkthrough works immediately, without creating anything first.
 |---|---|
 | Validation and meaningful errors | RFC 9457 problem documents, FluentValidation, domain-level tariff validation |
 | Soft deletes | Master data only, never financial records ([ADR-0010](docs/adr/0010-soft-delete-policy.md)) |
-| Unit tests | 32 tests over the two calculations that decide what a customer pays |
+| Unit tests | 32 domain tests, plus 8 integration tests against real PostgreSQL |
 | Multiple ingestion mechanisms | REST single + REST batch (store-and-forward) |
 | Payment gateway with logs | Mocked provider, every attempt logged, idempotent on a caller key |
 | Supply cut-off (relay valve) | Desired-vs-reported valve state, with a mandatory audited reason |
@@ -294,7 +294,7 @@ change the system most if wrong:
 ## Testing
 
 ```bash
-dotnet test                                    # 32 domain tests, no Docker needed
+dotnet test                                    # 32 domain tests + 8 integration tests
 cd web && npm run lint && npm run build        # lint, type-check, bundle
 scripts/verify-restore.sh --local              # backup restore drill
 ```
@@ -303,30 +303,50 @@ scripts/verify-restore.sh --local              # backup restore drill
 pays — consumption derivation and tariff pricing — including the boundary values
 (0, exactly on a band edge, one millilitre past it) where an off-by-one would
 silently mis-bill everyone in a band, and the property that August + September must
-equal both months billed together.
+equal both months billed together. No database, no host — pure functions in, values out.
+
+`WaterBilling.Api.Tests` covers the guarantees that live in the database and the
+HTTP boundary rather than in a pure function: idempotent ingestion, idempotent
+billing (with the money math asserted exactly, not just the status code), and the
+authorization boundary between customers and between a customer and an admin
+endpoint. It runs against a real PostgreSQL in a
+[Testcontainers](https://dotnet.testcontainers.org/) container — the same
+`DatabaseInitializer` hosted service applies migrations here as in production, so a
+migration that would break a real deployment breaks this test run too — through the
+same HTTP endpoints a real admin and a real meter use, not by writing rows into the
+database directly. **Requires Docker locally**; CI runs it on every push.
 
 The solution builds with `TreatWarningsAsErrors`. The web client is generated from
 the API's OpenAPI document, and CI fails if the committed client has drifted from it.
 
-### Verified by hand against a live database
+### Automated in `WaterBilling.Api.Tests`
 
-Integration tests are the main gap (see [improvements](#what-i-would-improve-with-more-time)).
-These behaviours were confirmed manually against PostgreSQL with 44,040 seeded readings:
+| Behaviour | Test |
+|---|---|
+| Duplicate reading posted twice | `200 duplicate_ignored`, and the unique index left exactly one row — asserted directly, not just inferred from the status code |
+| Ingestion without a meter key, or with a user's JWT instead | `401` in both directions |
+| Billing run prices real ingested readings correctly | Consumption and the invoice total asserted to the cent, not just the outcome |
+| **Re-running the same period** | `0` new invoices; the second run's item reports `AlreadyBilled` against the same invoice id |
+| A meter with identical opening and closing readings | Still `Generated`, `0` consumption — not mistaken for "no data" or silently skipped |
+| Customer reading another customer's invoice | `403`; the invoice's own owner reading the same id is `200`, so the boundary is proven to be ownership, not "customers can't read invoices" |
+| Customer calling an admin-only endpoint | `403` |
+| Login with the wrong password | `401` |
+
+### Still verified by hand against a live database
+
+The remaining behaviours from the original manual verification pass — the
+harder-to-arrange edge cases — are not yet automated; see
+[improvements](#what-i-would-improve-with-more-time). Confirmed manually against
+PostgreSQL with 44,040 seeded readings:
 
 | Behaviour | Result |
 |---|---|
 | Migrations apply to an empty database | 15 tables created |
 | Consumption across a register reset | Summed across the discontinuity, flagged, never negative |
 | Consumption across a 30-hour reporting gap | Correct — derived from anchors, not from counting readings |
-| Billing run, previous month | 5 invoices, 1 meter skipped with a stated reason |
-| **Re-running the same period** | 0 new invoices, all reported `AlreadyBilled` |
 | Slab breakdown on an invoice | All four bands, telescopic, totals reconcile |
 | Customer listing invoices | Sees only their own |
 | Customer passing `?customerId=` for another account | Ignored — scoping is applied before caller filters |
-| Customer reading another customer's invoice | `403` |
-| Customer calling an admin endpoint | `403` |
-| Duplicate reading posted twice | `200 duplicate_ignored` |
-| Customer JWT on the ingestion endpoint | `401` |
 | Payment retried with the same idempotency key | One payment row, not two |
 | Tariff with a gap between bands | `422` with the specific bands named |
 
@@ -430,12 +450,13 @@ requires documented sign-off before implementation.
 
 Ordered by what I would actually do next.
 
-1. **Integration tests against real PostgreSQL.** The domain calculations are well
-   covered by 32 unit tests, but the guarantees that matter most — idempotent
-   ingestion, idempotent billing, the authorization boundary — live in unique indexes
-   and endpoint filters. I verified them by hand against a live database (the
-   evidence is in this README); they should be Testcontainers tests that run on every
-   push. This is the single biggest gap.
+1. **Broader integration test coverage.** `WaterBilling.Api.Tests` now covers the
+   guarantees that matter most against a real PostgreSQL in Testcontainers —
+   idempotent ingestion, idempotent billing with the money math asserted exactly,
+   and the authorization boundary — on every push, not just verified by hand once.
+   What is still only manually verified (see the table above) is the harder-to-wire
+   edge cases: a register reset, a multi-hour reporting gap, slab (rather than flat)
+   pricing, and payment idempotency. Same shape of gap as before, smaller now.
 
 2. **Webhook egress.** The `billing_run` and reading-anomaly events are the obvious
    payloads. Doing it properly means a delivery table with retry and exponential
@@ -487,8 +508,7 @@ src/
   WaterBilling.Api/             Vertical feature slices: endpoint + validator + DTOs.
 tests/
   WaterBilling.Domain.Tests/    Pure unit tests. No database, no host.
-                                 Integration tests against real PostgreSQL do not exist
-                                 yet — see "What I would improve" below.
+  WaterBilling.Api.Tests/       Integration tests against real PostgreSQL (Testcontainers).
 web/                            React + TypeScript client. See web/README.md.
 openapi/                        Contract emitted by the API build; the web client is generated from it.
 docs/
